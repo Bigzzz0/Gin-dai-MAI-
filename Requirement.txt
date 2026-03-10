@@ -1,0 +1,696 @@
+รายละเอียดข้อเสนอโครงงาน (Project Proposal)	
+1. ชื่อโครงงาน:
+ภาษาไทย: Gin dai MAI! (กินได้ไหม!) : ระบบสแกนตรวจสอบความปลอดภัยและสิ่งแปลกปลอมในวัตถุดิบอาหารด้วย Generative AI
+ภาษาอังกฤษ: Gin dai MAI!: AI-Powered Food Safety & Anomaly Detection System
+2. หลักการและเหตุผล:
+ในปัจจุบัน ปัญหาความปลอดภัยด้านอาหาร เป็นเรื่องใกล้ตัวที่มีความเสี่ยงสูง เช่น การปนเปื้อนของพยาธิในเนื้อสัตว์ (เช่น พยาธิเม็ดสาคูในหมู), สัตว์มีพิษที่ปะปนมากับอาหารทะเล (เช่น หมึกบลูริง), หรือเชื้อราในผักผลไม้ ซึ่งผู้บริโภคทั่วไปมักขาดความรู้ความชำนาญในการสังเกตด้วยตาเปล่า หรืออาจเกิดความสับสนในการแยกแยะ
+การพัฒนา AI เพื่อตรวจสอบเรื่องเหล่านี้ด้วยวิธีดั้งเดิม มีข้อจำกัดสำคัญคือ "ความขาดแคลนข้อมูลภาพตัวอย่างโรค" ทำให้การสร้างโมเดลมีความแม่นยำต่ำ คณะผู้จัดทำจึงนำเสนอแนวทางใหม่โดยใช้ Generative AI ซึ่งมีความรู้รอบตัวสูงและสามารถวิเคราะห์ภาพได้เสมือนผู้เชี่ยวชาญ มาช่วยในการคัดกรองและให้คำแนะนำแก่ผู้บริโภค เพื่อยกระดับความปลอดภัยทางอาหาร
+3. วัตถุประสงค์:
+เพื่อพัฒนาระบบคัดกรองความผิดปกติทางกายภาพของวัตถุดิบอาหารผ่านกล้องสมาร์ตโฟน
+เพื่อประยุกต์ใช้เทคโนโลยี Generative AI ในการวิเคราะห์ภาพและลดข้อจำกัดด้านการหาข้อมูลสอนโมเดล 
+เพื่อสร้างเครื่องมือที่ช่วยแจ้งเตือนความเสี่ยงและให้ความรู้แก่ผู้บริโภคก่อนการปรุงอาหาร
+4. ขอบเขตของโครงงาน:
+4.1 ด้านความสามารถระบบ:
+Input: รองรับการถ่ายภาพนิ่ง ผ่านแอปพลิเคชัน (ไม่รองรับวิดีโอเรียลไทม์เพื่อความแม่นยำและลดค่าใช้จ่าย)
+Process: ใช้ Generative AI API เช่น Gemini Pro Vision ในการวิเคราะห์ภาพร่วมกับเทคนิค Prompt Engineering เพื่อลดการให้ข้อมูลเท็จ (Hallucination)
+Target Categories: รองรับการตรวจสอบ 3 หมวดหลัก:
+เนื้อสัตว์: ตรวจจับฝีหนอง, เม็ดสาคู (พยาธิ), และสีเนื้อที่ผิดปกติ
+อาหารทะเล: ตรวจจับลวดลายสัตว์มีพิษ (หมึกบลูริง) และพยาธิในปลา
+ผักผลไม้: ตรวจจับเชื้อราและการเน่าเสีย
+Output: แสดงผลการวิเคราะห์เป็น 3 ระดับ (ปลอดภัย / น่าสงสัย / อันตราย) พร้อมคำอธิบายเหตุผล
+
+4.2 ข้อจำกัดของระบบ:
+ตรวจสอบได้เฉพาะความผิดปกติที่ "ปรากฏบนพื้นผิวภายนอก" เท่านั้น ไม่สามารถตรวจสอบเชื้อโรคระดับจุลทรีย์หรือสารเคมีตกค้างได้
+ความแม่นยำขึ้นอยู่กับความคมชัดของภาพและแสงสว่างขณะถ่าย
+5. กลุ่มเป้าหมาย/ผู้ใช้งาน:
+ผู้บริโภคทั่วไป: แม่บ้าน, นักศึกษา, หรือผู้ที่ทำอาหารทานเอง
+นักท่องเที่ยว: ที่ต้องการตรวจสอบความปลอดภัยของวัตถุดิบในท้องถิ่นที่ไม่คุ้นเคย
+6. ประเภทของระบบ:
+Mobile Application (ที่เป็น Client เชื่อมต่อกับ Cloud AI Service)
+
+
+Functional Requirements: Kin dai MAI!
+1. ส่วนจัดการการนำเข้าภาพ
+FR-1.1: ระบบต้องอนุญาตให้ผู้ใช้งานถ่ายภาพวัตถุดิบอาหารผ่านกล้องสมาร์ตโฟนภายในแอปพลิเคชันได้
+FR-1.2: ระบบต้องมีฟังก์ชันเปิด/ปิดไฟแฟลชและปรับโฟกัสเพื่อให้เห็นรายละเอียดพื้นผิววัตถุดิบได้ชัดเจน
+FR-1.3: ระบบต้องรองรับการเลือกรูปภาพจากคลังภาพในอุปกรณ์ได้
+FR-1.4: ระบบต้องมีเครื่องมือตัดส่วนภาพเพื่อให้ผู้ใช้งานกำหนดขอบเขตวัตถุดิบที่ต้องการตรวจสอบได้
+FR-1.5: ระบบต้องทำการย่อขนาดไฟล์ภาพอัตโนมัติก่อนส่งไปประมวลผล เพื่อลดปริมาณการใช้อินเทอร์เน็ตและความหน่วง 
+2. ส่วนประมวลผลและวิเคราะห์ด้วย AI
+FR-2.1: ระบบต้องสามารถเชื่อมต่อกับ Generative AI API (เช่น Gemini Pro Vision หรือ GPT-4o) เพื่อส่งข้อมูลภาพและชุดคำสั่ง ไปประมวลผลได้
+FR-2.2: ระบบต้องสามารถจำแนกประเภทวัตถุดิบจากภาพได้อัตโนมัติ (เช่น เนื้อสัตว์, อาหารทะเล, ผักผลไม้)
+FR-2.3: ระบบต้องสามารถตรวจจับความผิดปกติทางกายภาพตามหมวดหมู่ดังนี้:
+เนื้อสัตว์: ตรวจจับตุ่มเม็ดสาคู, ฝีหนอง, และสีเนื้อที่ผิดปกติ
+อาหารทะเล: ตรวจจับลวดลายวงแหวนสีน้ำเงิน และพยาธิในเนื้อปลา
+ผักและผลไม้: ตรวจจับเชื้อรา และรอยเน่าเสีย
+FR-2.4: ระบบต้องสามารถประเมินระดับความเสี่ยง ได้ 3 ระดับ คือ ปลอดภัย (Safe), น่าสงสัย (Suspicious), และอันตราย (Dangerous)
+3. ส่วนแสดงผลและการแจ้งเตือน
+FR-3.1: ระบบต้องแสดงผลลัพธ์การวิเคราะห์บนหน้าจอ โดยระบุระดับความปลอดภัยด้วยสี (เขียว/เหลือง/แดง) ให้ผู้ใช้เข้าใจง่าย
+FR-3.2: ระบบต้องแสดงคำอธิบายประกอบ ที่ได้รับจาก AI ว่าทำไมวัตถุดิบนี้ถึงอันตราย (เช่น "ตรวจพบลวดลายคล้ายหมึกบลูริง")
+FR-3.3: ระบบต้องแสดงกรอบสี่เหลี่ยม หรือไฮไลท์ตำแหน่งที่พบความผิดปกติบนภาพถ่าย (หาก AI ส่งพิกัดกลับมาได้)
+FR-3.4: ระบบต้องแสดงคำแนะนำเบื้องต้น เช่น "ห้ามรับประทาน", "ควรตัดส่วนที่เน่าเสียทิ้ง", หรือ "ปลอดภัยสำหรับปรุงอาหาร"
+
+
+4. ส่วนจัดการประวัติและข้อมูลผู้ใช้
+FR-4.1: ระบบต้องบันทึกประวัติการสแกน ของผู้ใช้งาน โดยเก็บรูปภาพ, ผลการวิเคราะห์, และวันที่ตรวจสอบ
+FR-4.2: ระบบต้องอนุญาตให้ผู้ใช้งานลบรายการประวัติการสแกนได้
+FR-4.3: ระบบต้องมีฟังก์ชัน Feedback ให้ผู้ใช้กดรายงานความผิดพลาด หาก AI วิเคราะห์ผลไม่ถูกต้อง เพื่อนำไปปรับปรุง Prompt ในอนาคต
+
+
+Non-Functional Requirements: FoodGuard System
+1. ด้านประสิทธิภาพ
+NFR-1.1 Response Time: ระบบควรแสดงผลการวิเคราะห์ภาพภายในเวลา ไม่เกิน 5-10 วินาที หลังจากผู้ใช้งานกดยืนยันการส่งภาพ (ภายใต้สัญญาณอินเทอร์เน็ต 4G/5G หรือ Wi-Fi มาตรฐาน)
+NFR-1.2 Image Processing Speed: กระบวนการย่อขยายภาพ ก่อนอัปโหลดต้องใช้เวลาไม่เกิน 2 วินาที เพื่อลดความรู้สึกหน่วงของผู้ใช้งาน
+NFR-1.3 Concurrency: ระบบต้องรองรับการส่งคำขอ จากผู้ใช้งานพร้อมกันได้อย่างน้อย 50-100 คนต่อวินาที โดยระบบไม่ล่ม (ขึ้นอยู่กับโควตา API ที่เลือกใช้)
+2. ด้านความน่าเชื่อถือและความแม่นยำ
+NFR-2.1 Availability: ระบบต้องมีความพร้อมใช้งาน ไม่ต่ำกว่า 99.0% ในช่วงเวลาทำการปกติ (เช่น 05:00 - 20:00 น. ซึ่งเป็นเวลาจ่ายตลาดและทำอาหาร)
+NFR-2.2 Failure Handling: กรณีที่การเชื่อมต่อ API ล้มเหลวหรือหมดเวลาระบบต้องแจ้งเตือนผู้ใช้งานด้วยข้อความที่เข้าใจง่าย (เช่น "ไม่สามารถวิเคราะห์ได้ กรุณาลองใหม่อีกครั้ง") แทนที่จะแสดง Error Code ทางเทคนิค
+NFR-2.3 Disclaimer: ระบบต้องแสดงข้อความปฏิเสธความรับผิดชอบ ทุกครั้งอย่างชัดเจนว่า "ผลลัพธ์จาก AI เป็นเพียงการคัดกรองความเสี่ยงเบื้องต้น ไม่สามารถทดแทนการตรวจสอบทางห้องปฏิบัติการ หรือการวินิจฉัยโดยผู้เชี่ยวชาญได้"
+3. ด้านการใช้งาน
+NFR-3.1 Ease of Use: ระบบต้องออกแบบ UI ให้เรียบง่าย โดยผู้ใช้งานต้องสามารถดำเนินการตรวจสอบเสร็จสิ้นได้ภายใน 3 ขั้นตอน (เปิดแอป -> ถ่ายรูป -> ดูผล)
+NFR-3.2 Language Support: ระบบต้องรองรับการแสดงผลและคำแนะนำเป็น ภาษาไทย ที่ใช้ถ้อยคำเข้าใจง่าย หลีกเลี่ยงศัพท์เทคนิคทางคอมพิวเตอร์
+NFR-3.3 Visibility: การแสดงผลสถานะ "อันตราย" ต้องใช้สีแดงและไอคอนที่เด่นชัด เพื่อให้ผู้ใช้งานสังเกตเห็นได้ทันทีแม้ในสภาพแสงจ้า
+
+4. ด้านความปลอดภัยและความเป็นส่วนตัว
+NFR-4.1 Data Transmission: การส่งข้อมูลภาพระหว่างแอปพลิเคชันและเซิร์ฟเวอร์ต้องเข้ารหัสผ่านโปรโตคอล HTTPS (SSL/TLS) เพื่อป้องกันการดักจับข้อมูล
+NFR-4.2 API Key Security: คีย์สำหรับการเชื่อมต่อ AI (API Key) ต้องถูกเก็บรักษาไว้ในฝั่ง Server-side (Backend) เท่านั้น ห้ามฝังไว้ในตัวแอปพลิเคชันเพื่อป้องกันการถูกโจรกรรม
+NFR-4.3 User Privacy: ระบบต้องไม่นำภาพถ่ายของผู้ใช้งานไปเผยแพร่ต่อสาธารณะโดยไม่ได้รับความยินยอม และต้องไม่มีการเก็บข้อมูลระบุตัวตน เกินความจำเป็น
+5. ด้านความเข้ากันได้ของระบบ
+NFR-5.1 Operating System: แอปพลิเคชันต้องรองรับการทำงานบนระบบปฏิบัติการ Android (เวอร์ชัน 10.0 ขึ้นไป) และ iOS (เวอร์ชัน 15.0 ขึ้นไป)
+NFR-5.2 Hardware Requirement: อุปกรณ์ต้องมีกล้องหลังความละเอียดไม่ต่ำกว่า 8 ล้านพิกเซล และมีระบบ Auto-focus เพื่อให้ภาพมีความคมชัดเพียงพอสำหรับการวิเคราะห์ของ AI
+NFR-5.3 Connectivity: แอปพลิเคชันต้องใช้งานได้เฉพาะเมื่อมีการเชื่อมต่ออินเทอร์เน็ตเท่านั้น (เนื่องจากต้องส่งข้อมูลไปประมวลผลบน Cloud)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+LINK : Mindmap
+
+
+
+
+
+
+
+
+
+
+
+
+
+คำอธิบายขั้นตอนการทำงาน
+แผนภาพกิจกรรม แสดงกระบวนการทำงานของระบบ FoodGuard โดยแบ่งความรับผิดชอบออกเป็น 3 ส่วนหลัก ได้แก่ ผู้ใช้งาน, แอปพลิเคชันฝั่งเครื่องลูกข่าย , และบริการปัญญาประดิษฐ์บนคลาวด์ (Generative AI Service) โดยมีลำดับขั้นตอนดังนี้:
+1. ขั้นตอนการนำเข้าและเตรียมข้อมูล
+กระบวนการเริ่มต้นเมื่อผู้ใช้งานเปิดแอปพลิเคชันและเลือกวิธีการนำเข้าภาพวัตถุดิบ ซึ่งระบบรองรับ 2 ช่องทาง คือ การถ่ายภาพใหม่และการเลือกภาพจากคลังภาพ
+หลังจากได้ภาพต้นฉบับ ผู้ใช้งานเข้าสู่ขั้นตอนการปรับแต่งภาพ เพื่อกำหนดขอบเขตของวัตถุดิบให้ชัดเจนที่สุด แล้วกดยืนยันการตรวจสอบ
+2. ขั้นตอนการตรวจสอบและส่งข้อมูล
+การตรวจสอบการเชื่อมต่อ : ก่อนเริ่มกระบวนการ แอปพลิเคชันจะทำการตรวจสอบสัญญาณอินเทอร์เน็ต หากไม่พบการเชื่อมต่อ ระบบจะแจ้งเตือนให้ผู้ใช้เชื่อมต่ออินเทอร์เน็ตและหยุดการทำงานชั่วคราว (Exception Handling)
+การเตรียมข้อมูล: เมื่ออินเทอร์เน็ตพร้อมใช้งาน ระบบจะแสดงสถานะกำลังประมวลผล และทำการย่อขนาดภาพ เพื่อลดปริมาณข้อมูล พร้อมทั้งสร้างชุดคำสั่ง สำหรับโหมดตรวจสอบอัตโนมัติ
+การส่งข้อมูล: แอปพลิเคชันส่งข้อมูลภาพและคำสั่งไปยัง AI Cloud ผ่านโปรโตคอล HTTPS
+3. ขั้นตอนการวิเคราะห์ด้วยปัญญาประดิษฐ์
+ระบบใช้กลยุทธ์การวิเคราะห์แบบ 2 ขั้นตอน เพื่อประสิทธิภาพสูงสุด:
+ขั้นที่ 1 การตรวจสอบคุณภาพและจำแนกประเภท: AI จะตรวจสอบว่าภาพมีความคมชัดเพียงพอและเป็นภาพวัตถุดิบอาหารหรือไม่ หากภาพไม่ชัดเจนหรือไม่ใช่อาหาร ระบบจะส่งคืนค่า Error ทันทีเพื่อลดการใช้ทรัพยากร
+ขั้นที่ 2 การเลือกคำสั่งและตรวจจับ: หากภาพผ่านเกณฑ์ AI จะระบุประเภทวัตถุดิบ (เนื้อสัตว์/อาหารทะเล/ผักผลไม้) และเลือกใช้ Prompt เฉพาะทางสำหรับหมวดหมู่นั้นๆ เพื่อทำการตรวจจับความผิดปกติ เช่น พยาธิ หรือลวดลายมีพิษ
+การประเมินผล: AI ประเมินระดับความเสี่ยง และสรุปผลลัพธ์เป็นโครงสร้างข้อมูล JSON ส่งกลับมายังแอปพลิเคชัน
+4. ขั้นตอนการแสดงผลและบันทึกข้อมูล
+กรณีวิเคราะห์สำเร็จ: แอปพลิเคชันจะรับข้อมูล JSON มาบันทึกลงฐานข้อมูลภายใน (Local Database) เพื่อเก็บประวัติ และแสดงผลลัพธ์ระดับความเสี่ยง (ปลอดภัย/น่าสงสัย/อันตราย) พร้อมคำแนะนำแก่ผู้ใช้งาน
+กรณีเกิดข้อผิดพลาด: หากได้รับ Error Code (เช่น ภาพเบลอ) ระบบจะแสดงข้อความแจ้งเตือนที่ระบุสาเหตุชัดเจน และนำผู้ใช้งานกลับสู่ขั้นตอนการปรับแต่งหรือถ่ายภาพใหม่อีกครั้ง
+
+
+
+Actor (ผู้ใช้งาน)
+Use Case 
+ผู้ใช้งานทั่วไป
+ถ่ายภาพวัตถุดิบผ่านกล้อง
+เปิด/ปิดไฟแฟลชและโฟกัส
+เลือกรูปภาพจากคลังภาพ
+ตัดส่วนและหมุนภาพ (Crop/Rotate)
+ยืนยันการส่งตรวจสอบ
+ตรวจสอบหมวดเนื้อสัตว์
+ตรวจสอบหมวดอาหารทะเล
+ตรวจสอบหมวดผักผลไม้
+ดูระดับความเสี่ยง (สีเตือนภัย)
+อ่านรายละเอียดผลวิเคราะห์
+ดูตำแหน่งความผิดปกติบนภาพ
+อ่านคำแนะนำการปฏิบัติตัว
+ดูประวัติการสแกนย้อนหลัง
+ลบรายการประวัติ
+รายงานความผิดพลาด (Feedback)
+แชร์ผลการตรวจสอบ
+
+
+
+
+List of Domain Classes: 
+1. กลุ่มผู้ใช้งาน (User & Actors)
+1. User (ผู้ใช้งาน)
+คำอธิบาย: ตัวแทนของผู้ใช้งานแอปพลิเคชันที่ทำการส่งรูปภาพเข้ามาตรวจสอบ
+Attributes:
+userID: รหัสผู้ใช้งาน (PK)
+username: ชื่อผู้ใช้งาน
+email: อีเมล (ใช้สำหรับ Login/Reset Password)
+passwordHash: รหัสผ่านที่เข้ารหัสแล้ว
+registerDate: วันที่สมัครสมาชิก
+role: สถานะ (General User / Admin)
+2. UserProfile (ข้อมูลส่วนตัว)
+คำอธิบาย: ข้อมูลขยายของผู้ใช้งาน เช่น การตั้งค่า หรือความชอบ
+Attributes:
+profileID: รหัสโปรไฟล์
+displayName: ชื่อที่แสดงผล
+preferences: การตั้งค่า (เช่น ภาษาที่ใช้, การแจ้งเตือน)
+avatarUrl: ลิงก์รูปโปรไฟล์
+3. InputImage (รูปภาพนำเข้า)
+คำอธิบาย: วัตถุที่เก็บข้อมูลไฟล์รูปภาพที่ผู้ใช้ถ่ายหรือเลือกมาจาก Gallery
+Attributes:
+imageID: รหัสรูปภาพ
+filePath: ที่อยู่ไฟล์ในเครื่องหรือ Cloud URL
+uploadTimestamp: เวลาที่อัปโหลด
+fileSize: ขนาดไฟล์ (ใช้เช็คก่อนส่ง API)
+resolution: ความละเอียดภาพ (Width x Height)
+sourceType: แหล่งที่มา (Camera / Gallery)
+4. CroppedImage (รูปภาพที่ตัดส่วน)
+คำอธิบาย: ภาพที่ผ่านการ Process ตัดส่วนเฉพาะจุดแล้ว พร้อมส่งให้ AI
+Attributes:
+croppedImageID: รหัสรูปที่ตัดส่วน
+parentImageID: รหัสรูปต้นฉบับ (FK)
+coordinates: พิกัดการตัด (x, y, width, height)
+compressionLevel: ระดับการบีบอัดไฟล์
+5. InspectionSession (รอบการตรวจสอบ)
+คำอธิบาย: กิจกรรมการตรวจสอบ 1 ครั้ง (1 Transaction) เชื่อมโยง User, Image และ Result เข้าด้วยกัน
+Attributes:
+sessionID: รหัสการตรวจสอบ
+userID: รหัสผู้ใช้งาน (FK)
+startDate: เวลาที่เริ่มกดตรวจสอบ
+status: สถานะ (Processing, Completed, Failed)
+geoLocation: พิกัดสถานที่ (Optional: เผื่อเก็บข้อมูลว่าตลาดไหนเจอของเน่าเสียบ่อย)
+6. FoodCategory (หมวดหมู่อาหาร)
+คำอธิบาย: ประเภทของวัตถุดิบ ซึ่งกำหนดว่าจะใช้ Prompt แบบไหน
+Attributes:
+categoryID: รหัสหมวดหมู่
+categoryName: ชื่อหมวด (Meat, Seafood, Produce)
+description: คำอธิบายหมวดหมู่
+detectionRules: กฎการตรวจสอบเฉพาะของหมวดนี้
+7. SystemPrompt (ชุดคำสั่ง AI)
+คำอธิบาย: เก็บข้อความ Prompt ที่จะส่งให้ AI เพื่อให้ AI รู้ว่าต้องหาอะไร (สำคัญมากสำหรับระบบ Generative AI)
+Attributes:
+promptID: รหัสคำสั่ง
+categoryID: ใช้กับหมวดหมู่ไหน (FK)
+templateText: ข้อความคำสั่ง (เช่น "Analyze this meat for cysts...")
+version: เวอร์ชันของ Prompt (v1.0, v1.1)
+8. AnalysisResult (ผลการวิเคราะห์)
+คำอธิบาย: ผลลัพธ์รวมที่ตอบกลับมาจาก AI
+Attributes:
+resultID: รหัสผลลัพธ์
+sessionID: อ้างอิงรอบการตรวจสอบไหน (FK)
+confidenceScore: ค่าความมั่นใจของ AI (%)
+aiResponseRaw: ข้อมูล JSON ดิบที่ได้จาก AI
+analyzedDate: เวลาที่วิเคราะห์เสร็จ
+9. AnomalyDetail (รายละเอียดความผิดปกติ)
+คำอธิบาย: สิ่งผิดปกติที่ตรวจพบในภาพ (1 ภาพอาจมีหลายจุด)
+Attributes:
+anomalyID: รหัสความผิดปกติ
+resultID: อ้างอิงผลวิเคราะห์ไหน (FK)
+type: ประเภท (Parasite, Mold, Rot, Abscess)
+severity: ความรุนแรง (Low, Medium, High)
+boundingBox: พิกัดกรอบสี่เหลี่ยมบนภาพ (ถ้า AI ส่งมาให้)
+10. RiskAssessment (การประเมินความเสี่ยง)
+คำอธิบาย: การสรุปสถานะความปลอดภัยเพื่อแสดงผลแก่ผู้ใช้
+Attributes:
+riskID: รหัสความเสี่ยง
+levelName: ระดับ (Safe, Suspicious, Dangerous)
+colorCode: รหัสสี (Green, Yellow, Red)
+displayMessage: ข้อความที่จะโชว์หน้าจอ (Title)
+11. Recommendation (คำแนะนำ)
+คำอธิบาย: สิ่งที่ระบบแนะนำให้ผู้ใช้ทำต่อ
+Attributes:
+recommendationID: รหัสคำแนะนำ
+riskID: สัมพันธ์กับความเสี่ยงระดับไหน (FK)
+actionText: ข้อความแนะนำ (เช่น "ควรทิ้งทันที", "ตัดส่วนที่เสียออกได้")
+detailInfo: ข้อมูลความรู้เพิ่มเติม (เช่น "พยาธิชนิดนี้ตายเมื่อปรุงสุก...")
+
+12. ScanHistory (ประวัติการสแกน)
+คำอธิบาย: บันทึกถาวรที่ผู้ใช้กลับมาดูย้อนหลังได้
+Attributes:
+historyID: รหัสประวัติ
+userID: ของใคร (FK)
+resultSnapshot: ภาพสรุปผลลัพธ์
+isSaved: บันทึกเก็บไว้หรือไม่ (Boolean)
+savedDate: วันที่บันทึก
+13. UserFeedback (รายงานปัญหา)
+คำอธิบาย: ข้อมูลที่ผู้ใช้ส่งกลับมาเมื่อ AI ทำงานผิดพลาด
+Attributes:
+feedbackID: รหัส Feedback
+sessionID: เกิดจากรอบการตรวจไหน (FK)
+rating: คะแนนความพึงพอใจ (1-5)
+comment: ข้อความติชม
+reportedIssue: ประเภทปัญหา (False Positive, System Error)
+
+รายละเอียดความสัมพันธ์ (Relationship Specification)
+User <---> UserProfile
+Type: Association 
+Multiplicity: 1 to 1
+คำอธิบาย: ผู้ใช้งาน 1 คน มีข้อมูลโปรไฟล์ได้เพียง 1 ชุด และโปรไฟล์ 1 ชุด เป็นของผู้ใช้งาน 1 คนเท่านั้น
+User <---> InspectionSession
+Type: Association
+Multiplicity: 1 to 0..* (One-to-Many)
+คำอธิบาย: ผู้ใช้งาน 1 คน สามารถทำการตรวจสอบ (Session) ได้หลายครั้ง (หรือยังไม่เคยทำเลยก็ได้ 0)
+User <---> ScanHistory
+Type: Association
+Multiplicity: 1 to 0..* (One-to-Many)
+คำอธิบาย: ผู้ใช้งาน 1 คน เป็นเจ้าของประวัติการสแกนหลายรายการ
+InspectionSession <---> InputImage
+Type: Association
+Multiplicity: 1 to 1
+คำอธิบาย: ในการตรวจสอบ 1 รอบ จะมีรูปภาพต้นฉบับ 1 รูป
+InputImage <---> CroppedImage
+Type: Composition (องค์ประกอบ)
+Multiplicity: 1 to 0..1
+คำอธิบาย: รูปต้นฉบับ 1 รูป อาจถูกตัดส่วนเป็น CroppedImage 1 รูป (ถ้าลบรูปต้นฉบับ รูปที่ crop ก็จะหายไปด้วย)
+InspectionSession <---> FoodCategory
+Type: Association
+Multiplicity: * to 1 (Many-to-One)
+คำอธิบาย: การตรวจสอบหลายๆ ครั้ง อาจเลือกหมวดหมู่เดียวกัน (เช่น ตรวจสอบเนื้อหมู) แต่ 1 Session ต้องเลือกหมวดหมู่เดียวเท่านั้น
+FoodCategory <---> SystemPrompt
+Type: Aggregation หรือ Composition
+Multiplicity: 1 to 1..* (One-to-Many)
+คำอธิบาย: หมวดหมู่อาหาร 1 หมวด อาจมี System Prompt ได้หลายเวอร์ชัน แต่ Prompt หนึ่งตัวจะสังกัดแค่หมวดหมู่เดียว
+InspectionSession <---> AnalysisResult
+Type: Composition (องค์ประกอบ)
+Multiplicity: 1 to 0..1
+คำอธิบาย: การตรวจสอบ 1 รอบ จะสร้างผลลัพธ์ 1 ชุด (ถ้า Session ถูกลบ ผลลัพธ์ก็ควรหายไป) เป็น 0..1 เพราะตอนเริ่ม Session ผลลัพธ์อาจจะยังไม่ออก
+AnalysisResult <---> AnomalyDetail
+Type: Composition (องค์ประกอบ)
+Multiplicity: 1 to 0..*
+คำอธิบาย: ผลลัพธ์ 1 ชุด ประกอบด้วยจุดผิดปกติ (Anomaly) หลายจุด (เช่น เจอพยาธิ 3 จุด) ถ้าผลลัพธ์หาย รายละเอียดจุดพวกนี้ก็ต้องหายด้วย
+AnalysisResult <---> RiskAssessment
+Type: Association
+Multiplicity: * to 1 (Many-to-One)
+คำอธิบาย: ผลการตรวจสอบหลายใบ อาจได้ระดับความเสี่ยงเดียวกัน (เช่น "อันตราย" เหมือนกัน) แต่ผลลัพธ์ 1 ใบ จะมีระดับความเสี่ยงสรุปแค่ 1 ระดับ
+RiskAssessment <---> Recommendation
+Type: Aggregation
+Multiplicity: 1 to 1..* (One-to-Many)
+คำอธิบาย: ความเสี่ยงระดับหนึ่ง (เช่น อันตราย) จะมีชุดคำแนะนำหลายข้อ (เช่น "ห้ามกิน", "ทิ้งทันที")
+InspectionSession <---> UserFeedback
+Type: Association
+Multiplicity: 1 to 0..1
+คำอธิบาย: การตรวจสอบ 1 รอบ ผู้ใช้สามารถส่ง Feedback ได้ 1 ครั้ง (หรืออาจจะไม่ส่งเลยก็ได้)
+
+
+
+
+
+1. Use Case: ตรวจสอบความปลอดภัยอาหาร
+หัวข้อ (Item)
+รายละเอียด (Description)
+Use Case ID
+UC-01
+Use Case Name
+ตรวจสอบความปลอดภัยอาหาร (Inspect Food Safety)
+Actor
+ผู้ใช้งานทั่วไป (General User), AI Service (External System)
+Pre-condition
+1. ผู้ใช้งานต้องเปิดแอปพลิเคชันและมีการเชื่อมต่ออินเทอร์เน็ต
+2. ผู้ใช้งานได้ทำการเลือกรูปภาพและปรับแต่ง (Crop) เรียบร้อยแล้ว
+Post-condition
+ระบบได้รับผลลัพธ์การวิเคราะห์ (JSON Data) และบันทึกลงฐานข้อมูลชั่วคราว พร้อมที่จะแสดงผล
+Normal Flow
+1. ผู้ใช้งาน (User Action): กดยืนยันการส่งตรวจสอบที่หน้าจอ Preview
+
+2. ระบบ (System Response): ทำการย่อขนาดไฟล์ภาพ (Compression) และตรวจสอบคุณภาพภาพเบื้องต้น
+
+3. ระบบ: ส่งข้อมูลภาพและคำสั่ง (Prompt) ไปยัง AI Cloud Service ผ่าน API
+
+4. ระบบ: แสดงสถานะ "กำลังประมวลผล..." (Loading Indicator)
+
+5. AI Service: ทำการวิเคราะห์ภาพตามหมวดหมู่และส่งคืนค่าผลลัพธ์กลับมา
+
+6. ระบบ: รับข้อมูลผลลัพธ์และเปลี่ยนหน้าจอไปยังหน้าแสดงผล (Display Result)
+Alternative Flow
+กรณีผู้ใช้กดยกเลิก (2a): ขณะที่ระบบกำลังอัปโหลด หากผู้ใช้กดยกเลิก ระบบจะหยุดการส่งข้อมูลและกลับสู่หน้า Preview
+Exception Flow
+E-1 อินเทอร์เน็ตขัดข้อง: หากระบบตรวจสอบไม่พบสัญญาณอินเทอร์เน็ต จะแจ้งเตือนว่า "กรุณาเชื่อมต่ออินเทอร์เน็ต"
+
+E-2 ภาพไม่ชัดเจน (AI Error): หาก AI ตอบกลับมาว่าไม่สามารถระบุวัตถุได้ ระบบจะแจ้งเตือนว่า "ภาพไม่ชัดเจน กรุณาถ่ายใหม่" และไม่บันทึกผล
+
+
+2. Use Case: ดูผลวิเคราะห์และคำแนะนำ
+หัวข้อ (Item)
+รายละเอียด (Description)
+Use Case ID
+UC-02
+Use Case Name
+ดูผลวิเคราะห์และคำแนะนำ (View Analysis & Recommendation)
+Actor
+ผู้ใช้งานทั่วไป (General User)
+Pre-condition
+Use Case "ตรวจสอบความปลอดภัยอาหาร (UC-03)" ต้องทำงานเสร็จสมบูรณ์
+Post-condition
+ผู้ใช้งานรับทราบระดับความเสี่ยงและบันทึกประวัติการเข้าชมลงฐานข้อมูล
+Normal Flow
+1. ระบบ (System Response): แสดงหน้าจอผลลัพธ์โดยมีองค์ประกอบหลักคือ แถบสีระบุระดับความเสี่ยง (เขียว/เหลือง/แดง) และชื่อระดับความเสี่ยง
+
+2. ระบบ: แสดงกรอบสี่เหลี่ยม (Bounding Box) บนภาพในตำแหน่งที่ AI ตรวจพบความผิดปกติ
+
+3. ผู้ใช้งาน (User Action): กดอ่านรายละเอียดเพิ่มเติมของความผิดปกติ (เช่น "พบจุดสีขาวคล้ายไข่พยาธิ")
+
+4. ผู้ใช้งาน: เลื่อนลงมาอ่านส่วน "คำแนะนำ" (Recommendation)
+
+5. ระบบ: แสดงข้อความแนะนำ เช่น "ควรปรุงสุก 100%" หรือ "ไม่ควรรับประทาน"
+Alternative Flow
+กดแชร์ผลลัพธ์ (Optional): ผู้ใช้งานกดปุ่ม "แชร์" เพื่อส่งรูปภาพผลลัพธ์ไปยังแอปพลิเคชันอื่น (เช่น LINE/Facebook)
+Exception Flow
+E-1 โหลดภาพไม่สำเร็จ: หากอินเทอร์เน็ตหลุดระหว่างโหลดภาพผลลัพธ์ ระบบจะแสดง Placeholder และปุ่ม "โหลดใหม่" (Retry)
+
+
+3.Use Case: จัดการประวัติการสแกน
+หัวข้อ (Item)
+รายละเอียด (Description)
+Use Case ID
+UC-03
+Use Case Name
+จัดการประวัติการสแกน (Manage Scan History)
+Actor
+ผู้ใช้งานทั่วไป (General User)
+Pre-condition
+ผู้ใช้งานเคยทำการตรวจสอบอาหารมาแล้วอย่างน้อย 1 ครั้ง (มีข้อมูลใน Database)
+Post-condition
+ฐานข้อมูลประวัติถูกอัปเดตตามการกระทำของผู้ใช้ (ลบ/แก้ไข)
+Normal Flow
+1. ผู้ใช้งาน (User Action): กดเมนู "ประวัติการสแกน" จากหน้าหลัก
+
+2. ระบบ (System Response): ดึงข้อมูลรายการย้อนหลัง (List) จาก Local Database เรียงจากล่าสุดไปเก่าสุด
+
+3. ผู้ใช้งาน: เลือกแตะที่รายการที่ต้องการดู
+
+4. ระบบ: แสดงรายละเอียดผลการวิเคราะห์ของรายการนั้นๆ (Re-open UC-04)
+Alternative Flow
+การลบรายการ (Delete):
+
+1. ผู้ใช้งานปัดรายการทางซ้าย หรือกดปุ่ม "ลบ"
+
+2. ระบบแสดง Pop-up ยืนยัน "ต้องการลบประวัตินี้หรือไม่?"
+
+3. ผู้ใช้งานกดยืนยัน
+
+4. ระบบลบข้อมูลออกจาก Database และรีเฟรชหน้าจอรายการ
+Exception Flow
+E-1 ไม่พบข้อมูลประวัติ: หากฐานข้อมูลว่างเปล่า ระบบจะแสดงหน้าจอว่าง (Empty State) พร้อมข้อความ "ยังไม่มีประวัติการสแกน"
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+สมาชิก 
+นายศิฆรินทร์ อุปจันทร์	673380292-5 
+นายธนภูมิ จันทรา	673380272-1
+นายแทนคุณ พันธ์นิกุล	673390301-0
+นายรัฐภูมิ แฝงฤทธิ์หลง	653380373-7
+นายธนพนธ์ ไตรรงค์พิทักษ์ 663380385-7
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+2. สถาปัตยกรรมระดับสูง (High-Level Architecture)
+2.1 ภาพรวมสถาปัตยกรรม
+ระบบ Gin dai MAI! ใช้สถาปัตยกรรมแบบ Client-Server โดย Mobile Application ทำหน้าที่เป็น Client ที่ส่งคำขอไปยัง Backend Server ซึ่งทำหน้าที่เป็นตัวกลางในการเชื่อมต่อกับ Generative AI Cloud Service สถาปัตยกรรมนี้ช่วยให้สามารถปกป้อง API Key ไว้ที่ฝั่ง Server และสามารถปรับปรุงระบบได้โดยไม่กระทบต่อ Client Application
+2.2 ส่วนประกอบหลัก
+สถาปัตยกรรมระดับสูงประกอบด้วย 4 ชั้นหลัก (Tier) ดังนี้:
+ชั้น (Tier)
+คำอธิบาย
+Presentation Tier
+Mobile Application บน Android และ iOS ที่แสดง UI/UX ให้ผู้ใช้งาน รวมถึงฟังก์ชันกล้อง คลังภาพ และการแสดงผลลัพธ์
+Application Tier
+Backend Server ที่ทำหน้าที่จัดการ Business Logic, API Gateway, Authentication และเป็นตัวกลางในการเชื่อมต่อกับ AI Service
+Data Tier
+ฐานข้อมูลสำหรับเก็บข้อมูลผู้ใช้ ประวัติการสแกน และ Configuration ต่างๆ รวมถึง Local Storage บนอุปกรณ์
+AI Service Tier
+Generative AI Cloud Service (เช่น Google Gemini Pro Vision) ที่ทำหน้าที่วิเคราะห์ภาพและส่งผลลัพธ์กลับ
+
+ตารางที่ 1: ชั้นของสถาปัตยกรรมระดับสูง
+3. สถาปัตยกรรมส่วนประกอบ (Component Architecture)
+3.1 ส่วนประกอบของ Mobile Application
+Mobile Application ประกอบด้วยส่วนประกอบหลักที่แบ่งตามหน้าที่การทำงาน โดยใช้หลักการ Clean Architecture เพื่อให้สามารถบำรุงรักษาและทดสอบได้ง่าย
+3.1.1 Presentation Layer
+•         UI Components: ประกอบด้วย Camera Screen, Image Preview, Result Display, History List และ Settings Screen
+•         State Management: ใช้ Provider หรือ BLoC Pattern เพื่อจัดการสถานะของแอปพลิเคชัน
+•         Navigation: ระบบ Navigation ที่จัดการการเปลี่ยนหน้าจอและส่งข้อมูลระหว่าง Screen
+3.1.2 Domain Layer
+•         Entities: คลาสที่แทนข้อมูลหลัก เช่น User, InspectionSession, AnalysisResult, AnomalyDetail
+•         Use Cases: คลาสที่แทนกรณีการใช้งาน เช่น CaptureImage, AnalyzeImage, SaveHistory, SubmitFeedback
+•         Repository Interfaces: Interface ที่กำหนดสัญญาสำหรับการเข้าถึงข้อมูล
+3.1.3 Data Layer
+•         Repository Implementation: การนำ Repository Interface ไปใช้จริง
+•         Data Sources: แบ่งเป็น Remote (API Service) และ Local (SQLite/Hive)
+•         Models: Data Transfer Objects สำหรับการส่งผ่านข้อมูลระหว่าง Layer
+3.2 ส่วนประกอบของ Backend Server
+Backend Server ทำหน้าที่เป็น API Gateway และ Business Logic Layer โดยมีส่วนประกอบหลักดังนี้:
+ส่วนประกอบ
+หน้าที่
+API Gateway
+รับคำขอจาก Client และ Route ไปยัง Service ที่เหมาะสม รวมถึง Rate Limiting และ Request Validation
+Auth Service
+จัดการ Authentication และ Authorization ของผู้ใช้งาน รองรับ OAuth 2.0 และ JWT Token
+Image Service
+รับภาพจาก Client ทำ Image Preprocessing และส่งไปยัง AI Service
+AI Connector
+เชื่อมต่อกับ Generative AI API จัดการ Prompt Engineering และ Response Parsing
+History Service
+จัดการประวัติการสแกนของผู้ใช้ รวมถึงการบันทึก ดึงข้อมูล และลบประวัติ
+Feedback Service
+รับ Feedback จากผู้ใช้เพื่อปรับปรุงคุณภาพการวิเคราะห์ในอนาคต
+
+ตารางที่ 2: ส่วนประกอบของ Backend Server
+4. สถาปัตยกรรมการปรับใช้ (Deployment Architecture)
+4.1 โครงสร้างการปรับใช้
+ระบบ Gin dai MAI! ใช้โครงสร้างการปรับใช้แบบ Cloud-Native บน Platform as a Service (PaaS) เพื่อให้สามารถ Scale ได้ตามความต้องการและมีความพร้อมใช้งานสูง โดยมีส่วนประกอบดังนี้:
+4.1.1 Mobile Application Deployment
+1.  	Android: เผยแพร่ผ่าน Google Play Store รองรับ Android 10.0 ขึ้นไป
+2.  	iOS: เผยแพร่ผ่าน Apple App Store รองรับ iOS 15.0 ขึ้นไป
+3.  	ใช้เทคโนโลยี Cross-Platform (Expo / React Native) เพื่อลดเวลาในการพัฒนา
+4.1.2 Backend Deployment
+1.  	Containerized Application ด้วย Docker สำหรับความสม่ำเสมอในทุก Environment
+2.  	Deploy บน Cloud Platform เช่น Google Cloud Run หรือ AWS App Runner
+3.  	ใช้ CI/CD Pipeline สำหรับ Automated Testing และ Deployment
+4.  	Health Check และ Auto-scaling ตาม Traffic
+4.1.3 Database Deployment
+1.  	Cloud Database: ใช้ Managed Database Service เช่น Firebase Firestore หรือ Supabase
+2.  	Local Database: SQLite หรือ Hive บนอุปกรณ์สำหรับ Offline Cache
+3.  	Automatic Backup และ Point-in-Time Recovery
+4.2 Network Architecture
+การสื่อสารระหว่างส่วนประกอบต่างๆ ใช้โปรโตคอล HTTPS พร้อม SSL/TLS Encryption เพื่อความปลอดภัยของข้อมูล โดยมีรายละเอียดดังนี้: Client ส่งคำขอไปยัง Backend API ผ่าน HTTPS Port 443 โดยมี CDN ช่วย Cache และลด Latency สำหรับ Static Assets Backend เชื่อมต่อกับ AI Service ผ่าน Private API Endpoint เพื่อเพิ่มความปลอดภัย
+5. เทคโนโลยีที่ใช้ (Technology Stack)
+5.1 Frontend Technologies
+ส่วน
+เทคโนโลยี
+เหตุผล
+Framework
+React Native (Expo)
+Cross-platform, Fast Refresh, Native performance with OTA updates
+Language
+TypeScript
+Modern, Type-safe, Shared types with Backend
+State Management
+Zustand / Context API
+Predictable state, Lightweight, Easy to use
+Local Storage
+AsyncStorage / SQLite (Expo)
+Fast, Persistent, Offline Cache
+HTTP Client
+Axios / Fetch API
+Interceptors, FormData support
+
+ตารางที่ 3: Frontend Technologies
+5.2 Backend Technologies
+ส่วน
+เทคโนโลยี
+เหตุผล
+Runtime
+Node.js 20 LTS
+Non-blocking I/O, NPM ecosystem, High concurrency
+Framework
+Fastify
+High performance, Low overhead, Fast routing
+Language
+TypeScript
+Type safety, Better IDE support, Bug prevention
+Database
+Supabase (PostgreSQL) + Prisma ORM
+Free tier ใช้งานได้จริง, มี Auth+Storage ในตัว
+Cache
+Redis (Upstash)
+Free tier มี 10,000 requests/day, เหมาะกับ Rate Limiting
+Container
+Docker
+Consistency, Portability
+
+ตารางที่ 4: Backend Technologies
+5.3 Cloud Infrastructure & Auth
+ส่วน
+เทคโนโลยี
+เหตุผล
+Authentication
+Supabase Auth
+ผูกกับ Database โดยตรง, จัดการ JWT Token ให้, Free 50,000 MAU
+Server Hosting
+Render / Fly.io (Free Tier)
+รองรับ Node.js หรือ Docker ฟรี/ประหยัดมากตอนเริ่มต้น
+File Storage
+Supabase Storage
+ให้พื้นที่ฟรี 1GB และส่งตรงเข้า Database ได้ง่าย
+
+ตารางที่ 5: Cloud Infrastructure
+5.4 AI Service Integration
+ระบบเลือกใช้ Generative AI API สำหรับการวิเคราะห์ภาพเป็นหลักดังนี้:
+Service
+ความสามารถ
+เหตุผลที่เลือกใช้
+Google Gemini 1.5 Flash / Pro Vision
+Multimodal, เข้าใจบริบทและภาษาไทยระดับดีเยี่ยม, ราคาประหยัด ตอบสนองรวดเร็ว
+เหมาะสมที่สุดในการประมวลผลวิเคราะห์ภาพอาหารจำนวนมากได้อย่างรวดเร็ว (Latency ต่ำ) และคุ้มค่า
+
+ตารางที่ 6: AI Service Options
+6. สถาปัตยกรรมความปลอดภัย (Security Architecture)
+6.1 การรักษาความปลอดภัยของข้อมูล
+ความปลอดภัยเป็นปัจจัยสำคัญในระบบ Gin dai MAI! เนื่องจากมีการส่งภาพถ่ายของผู้ใช้งานไปประมวลผลบน Cloud ระบบจึงต้องมีมาตรการรักษาความปลอดภัยที่เข้มงวด โดยมีรายละเอียดดังนี้:
+6.1.1 Data Transmission Security
+•         HTTPS/TLS 1.3: การสื่อสารทั้งหมดระหว่าง Client, Backend และ AI Service ใช้การเข้ารหัส SSL/TLS
+•         Certificate Pinning: ป้องกัน Man-in-the-Middle Attack บน Mobile Application
+•         End-to-End Encryption: ข้อมูลภาพถูกเข้ารหัสตั้งแต่อุปกรณ์ผู้ใช้จนถึง AI Service
+6.1.2 API Security
+•         API Key Protection: API Key ถูกเก็บไว้ที่ Backend Server เท่านั้น ไม่มีการฝังใน Client Application
+•         Rate Limiting: จำกัดจำนวน Request ต่อผู้ใช้ต่อช่วงเวลา เพื่อป้องกัน Abuse
+•         Request Signing: ลายเซ็นดิจิทัลสำหรับ Request ที่สำคัญ
+•         Input Validation: ตรวจสอบความถูกต้องของ Input ทุกครั้งก่อนประมวลผล
+6.2 การจัดการ Authentication และ Authorization
+กลไก
+รายละเอียด
+Supabase Auth (OAuth 2.0)
+รองรับ Email/Password Authentication และ Social Login อย่างปลอดภัย พร้อม Row Level Security (RLS)
+JWT Token
+Access Token (15 นาที) และ Refresh Token จัดการให้อัตโนมัติโดยฝั่ง SDK ของ Supabase
+RBAC
+Role-Based Access Control สำหรับแยกสิทธิ์ผู้ใช้ทั่วไปและ Admin
+Biometric Auth
+รองรับ Face ID / Touch ID สำหรับการเข้าสู่ระบบครั้งที่ 2 เป็นต้นไป
+
+ตารางที่ 7: Authentication Mechanisms
+6.3 การคุ้มครองความเป็นส่วนตัว
+ระบบดำเนินการตามหลัก Privacy by Design โดยมีมาตรการคุ้มครองความเป็นส่วนตัวดังนี้: ไม่เก็บภาพถ่ายของผู้ใช้งานเกินความจำเป็น (Data Minimization) ขอความยินยอมจากผู้ใช้ก่อนเก็บข้อมูลใดๆ (Consent Management) ผู้ใช้สามารถลบข้อมูลของตนเองได้ทุกเมื่อ (Right to Erasure) ข้อมูลส่วนบุคคลถูกเข้ารหัสทั้งในระหว่างส่งและเก็บ (Data at Rest and in Transit Encryption)
+7. สถาปัตยกรรมการไหลของข้อมูล (Data Flow Architecture)
+7.1 กระบวนการตรวจสอบอาหาร (Food Inspection Flow)
+การไหลของข้อมูลในกระบวนการตรวจสอบอาหารประกอบด้วยขั้นตอนหลักที่เรียงลำดับอย่างชัดเจน เริ่มจากการที่ผู้ใช้งานถ่ายภาพหรือเลือกภาพจากคลัง จากนั้นภาพจะถูกประมวลผลเบื้องต้นที่ฝั่ง Client เช่น การย่อขนาดและตัดส่วน (Crop) จากนั้นภาพจะถูกส่งไปยัง Backend API ผ่าน HTTPS โดยมี Access Token แนบมาด้วย ที่ Backend จะทำการตรวจสอบ Token และประมวลผลภาพเพิ่มเติม จากนั้นส่งภาพและ Prompt ไปยัง AI Service เพื่อวิเคราะห์ ผลลัพธ์จะถูกส่งกลับมาที่ Backend เพื่อ Parse และ Format ก่อนส่งกลับไปยัง Client สุดท้ายผลลัพธ์จะถูกบันทึกลง Local Storage และแสดงผลแก่ผู้ใช้
+7.2 Data Flow Diagram
+ขั้นตอนการไหลของข้อมูลสามารถแบ่งเป็น 4 ขั้นตอนหลัก ดังนี้:
+1.  	Image Capture & Preprocessing: ผู้ใช้ถ่ายภาพ → Crop/Resize → Compress → ส่งไป Backend
+2.  	AI Analysis: Backend → API Gateway → Auth Check → AI Connector → Generative AI Service
+3.  	Result Processing: AI Response → Parse JSON → Calculate Risk Level → Generate Recommendations
+4.  	Result Delivery: Backend Response → Client Receives → Save to Local DB → Display to User
+7.3 Error Handling Flow
+ระบบมีการจัดการข้อผิดพลาดที่ครอบคลุมทุกขั้นตอน โดยมีกลไกดังนี้: Network Error จะมีการ Retry อัตโนมัติ 3 ครั้งก่อนแจ้งผู้ใช้ API Error จะถูก Map เป็นข้อความที่เข้าใจง่ายสำหรับผู้ใช้ Timeout Error จะแสดง Progress Indicator และให้ผู้ใช้สามารถยกเลิกได้ Invalid Image Error จะแจ้งให้ผู้ใช้ถ่ายภาพใหม่พร้อมคำแนะนำ
+8. ความสามารถในการปรับขนาด (Scalability)
+8.1 Horizontal Scaling
+ระบบถูกออกแบบให้สามารถ Scale ได้แบบ Horizontal โดย Backend Service สามารถเพิ่ม Instance ได้ตามความต้องการ โดยใช้ Load Balancer ในการกระจาย Traffic ส่วน Database สามารถใช้ Read Replica เพื่อกระจายภาระการอ่าน และ Redis Cluster สำหรับ Session Management และ Caching
+8.2 Performance Optimization
+มาตรการเพิ่มประสิทธิภาพของระบบประกอบด้วย: CDN สำหรับ Static Assets ลด Latency ในการโหลดทรัพยากร Image Compression ที่ Client Side ลดขนาดไฟล์ก่อนส่ง API Response Caching สำหรับคำขอที่ซ้ำกัน Database Indexing สำหรับ Query ที่ใช้บ่อย Async Processing สำหรับงานที่ใช้เวลานาน
+9. การติดตามและเฝ้าระวังระบบ (Monitoring)
+9.1 Application Monitoring
+ระบบมีเครื่องมือติดตามและเฝ้าระวังที่ครอบคลุมทุกด้าน เพื่อให้มั่นใจว่าระบบทำงานได้อย่างเสถียรและมีประสิทธิภาพ โดยมีรายการตรวจสอบดังนี้: Health Check Endpoint สำหรับตรวจสอบสถานะระบบ Real-time Metrics และ Dashboard สำหรับติดตาม Performance Alert System สำหรับแจ้งเตือนเมื่อเกิน Threshold Log Aggregation สำหรับรวบรวม Log จากทุก Service
+9.2 Key Performance Indicators (KPIs)
+KPI
+เป้าหมาย
+วิธีวัด
+API Response Time
+< 5 วินาที
+P95 Latency
+System Availability
+≥ 99%
+Uptime Monitor
+Error Rate
+< 1%
+Error/Total Requests
+Concurrent Users
+≥ 100
+Load Testing
+
+ตารางที่ 8: Key Performance Indicators
+
