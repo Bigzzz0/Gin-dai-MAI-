@@ -24,15 +24,18 @@ export const SAFETY_CONFIG = {
         color: '#22c55e',
         bgColor: '#f0fdf4',
         label: 'ปลอดภัย',
+        emoji: '🟢',
     },
     SUSPICIOUS: {
         color: '#f59e0b',
         bgColor: '#fffbeb',
         label: 'น่าสงสัย',
+        emoji: '🟡',
     },
     DANGEROUS: {
         color: '#ef4444',
         bgColor: '#fef2f2',
         label: 'อันตราย',
+        emoji: '🔴',
     },
 } as const;

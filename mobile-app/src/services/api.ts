@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { supabase } from '../lib/supabase';
 import { AIScanResult } from '../types/scan.types';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -12,12 +13,23 @@ import { AIScanResult } from '../types/scan.types';
 //  ตัวอย่าง: 192.168.1.42
 // ─────────────────────────────────────────────────────────────────────────────
 const LOCAL_IP = '192.168.1.2'; // ← เปลี่ยนตรงนี้!
-export const API_BASE_URL = `http://${LOCAL_IP}:3000/api/v1`;
+export const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || `http://${LOCAL_IP}:3000/api/v1`;
 
 export const apiClient = axios.create({
     baseURL: API_BASE_URL,
     headers: { 'Content-Type': 'application/json' },
     timeout: 60000, // 60 วินาที — Gemini อาจใช้เวลานานถ้า Cold Start
+});
+
+// Add a request interceptor to attach the Supabase JWT token
+apiClient.interceptors.request.use(async (config) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.access_token) {
+        config.headers.Authorization = `Bearer ${session.access_token}`;
+    }
+    return config;
+}, (error) => {
+    return Promise.reject(error);
 });
 
 // ─── Response Interceptor: จัดการ Error เป็นภาษาไทย ─────────────────────
@@ -68,6 +80,14 @@ export interface HistoryResponse {
 // ─── API Service ──────────────────────────────────────────────────────────
 
 export const apiService = {
+    /**
+     * ซิงค์ผู้ใช้กับ Backend
+     */
+    syncUser: async () => {
+        const response = await apiClient.post('/auth/sync');
+        return response.data;
+    },
+
     /**
      * ส่งรูปภาพไปให้ Backend วิเคราะห์ด้วย Gemini AI
      */

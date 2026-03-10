@@ -1,22 +1,24 @@
 import {
     View, Text, StyleSheet, Image,
-    TouchableOpacity, ScrollView, Share
+    TouchableOpacity, ScrollView, Share, Platform
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useStore } from '../src/store/useStore';
 import { SAFETY_CONFIG } from '../src/types/scan.types';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Share2, Check, AlertTriangle, ShieldCheck, Info, ScanSearch } from 'lucide-react-native';
 
 export default function ResultScreen() {
     const router = useRouter();
     const { lastScanResult, lastScanImageUrl, clearScanResult } = useStore();
 
-    // ถ้าไม่มีผลลัพธ์ (เช่น เปิดหน้านี้ตรงๆ โดยไม่ผ่าน preview)
     if (!lastScanResult) {
         return (
             <View style={styles.errorContainer}>
-                <Text style={styles.errorText}>ไม่พบผลการวิเคราะห์</Text>
+                <AlertTriangle color="#ef4444" size={48} style={{ marginBottom: 16 }} />
+                <Text style={styles.errorText}>Analysis result not found</Text>
                 <TouchableOpacity style={styles.backButton} onPress={() => router.navigate('/')}>
-                    <Text style={styles.backButtonText}>กลับหน้าแรก</Text>
+                    <Text style={styles.backButtonText}>Return Home</Text>
                 </TouchableOpacity>
             </View>
         );
@@ -33,11 +35,11 @@ export default function ResultScreen() {
     const handleShare = async () => {
         try {
             await Share.share({
-                message: `🍽️ ผลการตรวจสอบอาหาร "กินได้ไหม!"\n\n` +
-                    `วัตถุดิบ: ${lastScanResult.foodType}\n` +
-                    `ผล: ${config.label}\n` +
-                    `ความมั่นใจ: ${confidencePercent}%\n\n` +
-                    `รายละเอียด: ${lastScanResult.analysisDetail}`,
+                message: `🍽️ Food Safety Analysis by Gin dai mai!\n\n` +
+                    `Ingredient: ${lastScanResult.foodType}\n` +
+                    `Status: ${config.label}\n` +
+                    `Confidence: ${confidencePercent}%\n\n` +
+                    `Details: ${lastScanResult.analysisDetail}`,
             });
         } catch {}
     };
@@ -45,80 +47,114 @@ export default function ResultScreen() {
     return (
         <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
 
-            {/* Header แสดงสีตามความปลอดภัย */}
-            <View style={[styles.header, { backgroundColor: config.color }]}>
+            {/* Header */}
+            <LinearGradient
+                colors={[config.color, config.color + 'cc']} // slight opacity for gradient end
+                style={styles.header}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+            >
                 <Text style={styles.headerEmoji}>{config.emoji}</Text>
                 <Text style={styles.headerLabel}>{config.label}</Text>
                 <Text style={styles.headerFoodType}>{lastScanResult.foodType}</Text>
-            </View>
+            </LinearGradient>
 
-            {/* รูปภาพที่สแกน */}
+            {/* Image Container */}
             {lastScanImageUrl && (
-                <View style={styles.imageContainer}>
-                    <Image
-                        source={{ uri: lastScanImageUrl }}
-                        style={styles.scannedImage}
-                        resizeMode="cover"
-                    />
+                <View style={styles.imageWrapper}>
+                    <View style={styles.imageContainer}>
+                        <Image
+                            source={{ uri: lastScanImageUrl }}
+                            style={styles.scannedImage}
+                            resizeMode="cover"
+                        />
+                    </View>
                 </View>
             )}
 
-            {/* Confidence Score */}
-            <View style={styles.card}>
-                <Text style={styles.cardTitle}>ความมั่นใจของ AI</Text>
-                <View style={styles.confidenceBar}>
-                    <View
-                        style={[
-                            styles.confidenceFill,
-                            {
-                                width: `${confidencePercent}%` as any,
-                                backgroundColor: config.color,
-                            }
-                        ]}
-                    />
-                </View>
-                <Text style={[styles.confidenceText, { color: config.color }]}>
-                    {confidencePercent}%
-                </Text>
-            </View>
-
-            {/* รายละเอียดการวิเคราะห์ */}
-            <View style={styles.card}>
-                <Text style={styles.cardTitle}>รายละเอียดการวิเคราะห์</Text>
-                <Text style={styles.analysisText}>{lastScanResult.analysisDetail}</Text>
-            </View>
-
-            {/* Bounding Boxes (ถ้ามี) */}
-            {lastScanResult.boundingBoxes && lastScanResult.boundingBoxes.length > 0 && (
+            <View style={styles.contentPadding}>
+                {/* Confidence Card */}
                 <View style={styles.card}>
-                    <Text style={styles.cardTitle}>สิ่งที่ตรวจพบ</Text>
-                    {lastScanResult.boundingBoxes.map((box, index) => (
-                        <View key={index} style={styles.boundingBoxItem}>
-                            <View style={[styles.dot, { backgroundColor: config.color }]} />
-                            <Text style={styles.boundingBoxLabel}>{box.label}</Text>
+                    <View style={styles.cardHeader}>
+                        <ShieldCheck color="#64748b" size={20} />
+                        <Text style={styles.cardTitle}>AI Confidence</Text>
+                    </View>
+                    <View style={styles.confidenceBarContainer}>
+                        <View style={styles.confidenceBar}>
+                            <View
+                                style={[
+                                    styles.confidenceFill,
+                                    {
+                                        width: `${confidencePercent}%` as any,
+                                        backgroundColor: config.color,
+                                    }
+                                ]}
+                            />
                         </View>
-                    ))}
+                        <Text style={[styles.confidenceText, { color: config.color }]}>
+                            {confidencePercent}%
+                        </Text>
+                    </View>
                 </View>
-            )}
 
-            {/* คำเตือนพิเศษสำหรับ DANGEROUS */}
-            {lastScanResult.safetyLevel === 'DANGEROUS' && (
-                <View style={styles.warningCard}>
-                    <Text style={styles.warningTitle}>คำเตือน</Text>
-                    <Text style={styles.warningText}>
-                        ห้ามรับประทานวัตถุดิบนี้! กรุณาทิ้งหรือแยกออกจากวัตถุดิบอื่นทันที
-                    </Text>
+                {/* Analysis Details */}
+                <View style={styles.card}>
+                    <View style={styles.cardHeader}>
+                        <Info color="#64748b" size={20} />
+                        <Text style={styles.cardTitle}>Analysis Details</Text>
+                    </View>
+                    <Text style={styles.analysisText}>{lastScanResult.analysisDetail}</Text>
                 </View>
-            )}
 
-            {/* ปุ่มด้านล่าง */}
-            <View style={styles.buttonRow}>
-                <TouchableOpacity style={styles.shareButton} onPress={handleShare}>
-                    <Text style={styles.shareButtonText}>📤 แชร์</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.doneButton} onPress={handleDone}>
-                    <Text style={styles.doneButtonText}>เสร็จสิ้น</Text>
-                </TouchableOpacity>
+                {/* Bounding Boxes */}
+                {lastScanResult.boundingBoxes && lastScanResult.boundingBoxes.length > 0 && (
+                    <View style={styles.card}>
+                        <View style={styles.cardHeader}>
+                            <ScanSearch color="#64748b" size={20} />
+                            <Text style={styles.cardTitle}>Detected Items</Text>
+                        </View>
+                        {lastScanResult.boundingBoxes.map((box, index) => (
+                            <View key={index} style={styles.boundingBoxItem}>
+                                <View style={[styles.dot, { backgroundColor: config.color }]} />
+                                <Text style={styles.boundingBoxLabel}>{box.label}</Text>
+                            </View>
+                        ))}
+                    </View>
+                )}
+
+                {/* Warning for DANGEROUS */}
+                {lastScanResult.safetyLevel === 'DANGEROUS' && (
+                    <View style={styles.warningCard}>
+                        <View style={styles.cardHeader}>
+                            <AlertTriangle color="#b45309" size={20} />
+                            <Text style={styles.warningTitle}>Warning</Text>
+                        </View>
+                        <Text style={styles.warningText}>
+                            Do not consume this ingredient. Please discard or isolate it from other food items immediately.
+                        </Text>
+                    </View>
+                )}
+
+                {/* Bottom Actions */}
+                <View style={styles.buttonRow}>
+                    <TouchableOpacity 
+                        style={styles.shareButton} 
+                        onPress={handleShare}
+                        activeOpacity={0.7}
+                    >
+                        <Share2 color="#3b82f6" size={20} />
+                        <Text style={styles.shareButtonText}>Share</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity 
+                        style={styles.doneButton} 
+                        onPress={handleDone}
+                        activeOpacity={0.8}
+                    >
+                        <Check color="#fff" size={20} />
+                        <Text style={styles.doneButtonText}>Done</Text>
+                    </TouchableOpacity>
+                </View>
             </View>
 
             <View style={{ height: 40 }} />
@@ -129,172 +165,216 @@ export default function ResultScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#f5f5f5',
+        backgroundColor: '#f8fafc',
     },
     errorContainer: {
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
-        gap: 16,
         padding: 24,
+        backgroundColor: '#f8fafc',
     },
-    errorEmoji: { fontSize: 48 },
-    errorText: { fontSize: 18, color: '#666' },
+    errorText: { 
+        fontSize: 18, 
+        color: '#64748b',
+        fontWeight: '500',
+        marginBottom: 24,
+    },
     backButton: {
-        backgroundColor: '#2196F3',
-        paddingHorizontal: 24,
-        paddingVertical: 12,
-        borderRadius: 10,
+        backgroundColor: '#10b981',
+        paddingHorizontal: 32,
+        paddingVertical: 16,
+        borderRadius: 16,
     },
-    backButtonText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
+    backButtonText: { 
+        color: '#fff', 
+        fontWeight: '700', 
+        fontSize: 16 
+    },
 
-    // Header
     header: {
-        paddingVertical: 40,
+        paddingTop: Platform.OS === 'ios' ? 60 : 40,
+        paddingBottom: 60,
         paddingHorizontal: 24,
         alignItems: 'center',
-        gap: 8,
+        borderBottomLeftRadius: 30,
+        borderBottomRightRadius: 30,
+        gap: 12,
     },
-    headerEmoji: { fontSize: 48 },
-    headerLabel: {
-        fontSize: 26,
-        fontWeight: 'bold',
-        color: '#fff',
-    },
-    headerFoodType: {
-        fontSize: 18,
-        color: 'rgba(255,255,255,0.85)',
-        fontWeight: '500',
-    },
-
-    // Image
-    imageContainer: {
-        marginHorizontal: 20,
-        marginTop: -20,
-        borderRadius: 16,
-        overflow: 'hidden',
-        elevation: 4,
+    headerEmoji: { 
+        fontSize: 64,
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
+        shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.15,
         shadowRadius: 8,
     },
-    scannedImage: {
-        width: '100%',
-        height: 200,
+    headerLabel: {
+        fontSize: 28,
+        fontWeight: '800',
+        color: '#ffffff',
+        letterSpacing: 0.5,
+    },
+    headerFoodType: {
+        fontSize: 18,
+        color: 'rgba(255,255,255,0.9)',
+        fontWeight: '600',
     },
 
-    // Cards
-    card: {
+    contentPadding: {
+        paddingHorizontal: 20,
+    },
+
+    imageWrapper: {
+        alignItems: 'center',
+        marginTop: -40,
+        marginBottom: 20,
+        zIndex: 10,
+    },
+    imageContainer: {
+        width: '90%',
+        borderRadius: 24,
+        overflow: 'hidden',
         backgroundColor: '#fff',
-        marginHorizontal: 20,
-        marginTop: 16,
-        padding: 20,
-        borderRadius: 16,
-        elevation: 2,
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.08,
-        shadowRadius: 4,
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.1,
+        shadowRadius: 20,
+        elevation: 8,
+        borderWidth: 4,
+        borderColor: '#fff',
+    },
+    scannedImage: {
+        width: '100%',
+        height: 220,
+    },
+
+    card: {
+        backgroundColor: '#ffffff',
+        padding: 24,
+        borderRadius: 24,
+        marginBottom: 16,
+        shadowColor: '#94a3b8',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.1,
+        shadowRadius: 12,
+        elevation: 3,
+    },
+    cardHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        marginBottom: 16,
     },
     cardTitle: {
         fontSize: 16,
-        fontWeight: 'bold',
-        color: '#333',
-        marginBottom: 12,
+        fontWeight: '700',
+        color: '#0f172a',
     },
     analysisText: {
-        fontSize: 15,
-        color: '#555',
-        lineHeight: 24,
+        fontSize: 16,
+        color: '#475569',
+        lineHeight: 26,
     },
 
-    // Confidence
+    confidenceBarContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 16,
+    },
     confidenceBar: {
-        height: 10,
-        backgroundColor: '#eee',
-        borderRadius: 5,
+        flex: 1,
+        height: 8,
+        backgroundColor: '#f1f5f9',
+        borderRadius: 4,
         overflow: 'hidden',
-        marginBottom: 6,
     },
     confidenceFill: {
         height: '100%',
-        borderRadius: 5,
+        borderRadius: 4,
     },
     confidenceText: {
-        fontSize: 20,
-        fontWeight: 'bold',
-        textAlign: 'right',
+        fontSize: 18,
+        fontWeight: '800',
+        minWidth: 48,
     },
 
-    // Bounding Boxes
     boundingBoxItem: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 10,
-        paddingVertical: 6,
+        gap: 12,
+        paddingVertical: 8,
     },
     dot: {
-        width: 10,
-        height: 10,
-        borderRadius: 5,
+        width: 8,
+        height: 8,
+        borderRadius: 4,
     },
     boundingBoxLabel: {
-        fontSize: 15,
-        color: '#444',
+        fontSize: 16,
+        color: '#475569',
+        fontWeight: '500',
     },
 
-    // Warning
     warningCard: {
-        backgroundColor: '#fff3cd',
-        marginHorizontal: 20,
-        marginTop: 16,
-        padding: 16,
-        borderRadius: 12,
-        borderLeftWidth: 4,
-        borderLeftColor: '#ffc107',
+        backgroundColor: '#fef3c7',
+        padding: 24,
+        borderRadius: 24,
+        marginBottom: 16,
+        borderWidth: 1,
+        borderColor: '#fde68a',
     },
     warningTitle: {
         fontSize: 16,
-        fontWeight: 'bold',
-        color: '#856404',
-        marginBottom: 6,
+        fontWeight: '700',
+        color: '#b45309',
     },
     warningText: {
-        fontSize: 14,
-        color: '#856404',
-        lineHeight: 22,
+        fontSize: 15,
+        color: '#92400e',
+        lineHeight: 24,
+        marginTop: -8,
     },
 
-    // Buttons
     buttonRow: {
         flexDirection: 'row',
-        marginHorizontal: 20,
-        marginTop: 20,
-        gap: 12,
+        marginTop: 8,
+        gap: 16,
     },
     shareButton: {
         flex: 1,
-        backgroundColor: '#f0f0f0',
-        padding: 16,
-        borderRadius: 12,
+        backgroundColor: '#eff6ff',
+        paddingVertical: 16,
+        borderRadius: 16,
         alignItems: 'center',
+        justifyContent: 'center',
+        flexDirection: 'row',
+        gap: 8,
+        borderWidth: 1,
+        borderColor: '#bfdbfe',
     },
     shareButtonText: {
         fontSize: 16,
-        fontWeight: 'bold',
-        color: '#333',
+        fontWeight: '700',
+        color: '#3b82f6',
     },
     doneButton: {
         flex: 2,
-        backgroundColor: '#2196F3',
-        padding: 16,
-        borderRadius: 12,
+        backgroundColor: '#10b981',
+        paddingVertical: 16,
+        borderRadius: 16,
         alignItems: 'center',
+        justifyContent: 'center',
+        flexDirection: 'row',
+        gap: 8,
+        shadowColor: '#10b981',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+        elevation: 5,
     },
     doneButtonText: {
         fontSize: 16,
-        fontWeight: 'bold',
+        fontWeight: '700',
         color: '#fff',
     },
 });
