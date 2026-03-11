@@ -1,11 +1,21 @@
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Platform, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Camera, Image as ImageIcon, ShieldCheck } from 'lucide-react-native';
+import { Camera, Image as ImageIcon, ShieldCheck, LogOut } from 'lucide-react-native';
 import { BlurView } from 'expo-blur';
+import { supabase } from '../../src/lib/supabase';
 
 export default function HomeScreen() {
   const router = useRouter();
+
+  const handleLogout = async () => {
+    Alert.alert('Logout', 'Are you sure you want to log out?', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Logout', style: 'destructive', onPress: async () => {
+          await supabase.auth.signOut();
+      }}
+    ]);
+  };
 
   return (
     <View style={styles.mainContainer}>
@@ -15,9 +25,14 @@ export default function HomeScreen() {
       />
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
           <View style={styles.header}>
-            <View style={styles.badgeContainer}>
-               <ShieldCheck color="#10b981" size={20} />
-               <Text style={styles.badgeText}>AI Safety Scanner</Text>
+            <View style={styles.headerTopRow}>
+                <View style={styles.badgeContainer}>
+                   <ShieldCheck color="#10b981" size={20} />
+                   <Text style={styles.badgeText}>AI Safety Scanner</Text>
+                </View>
+                <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
+                    <LogOut color="#64748b" size={22} />
+                </TouchableOpacity>
             </View>
             <Text style={styles.title}>Gin dai MAI!</Text>
             <Text style={styles.subtitle}>Scan your food before eating to check for safety and get nutritional insights.</Text>
@@ -83,6 +98,22 @@ const styles = StyleSheet.create({
   header: {
     marginBottom: 40,
   },
+  headerTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 16,
+  },
+  logoutButton: {
+    padding: 10,
+    backgroundColor: '#fff',
+    borderRadius: 14,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 5,
+    elevation: 2,
+  },
   badgeContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -91,7 +122,6 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 20,
     alignSelf: 'flex-start',
-    marginBottom: 16,
   },
   badgeText: {
     fontFamily: 'Kanit_700Bold',

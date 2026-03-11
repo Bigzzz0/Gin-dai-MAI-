@@ -8,8 +8,10 @@ import { Lock, Mail, Camera, Utensils } from 'lucide-react-native';
 export default function AuthScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [otp, setOtp] = useState('');
   const [loading, setLoading] = useState(false);
   const [isLogin, setIsLogin] = useState(true);
+  const [isVerify, setIsVerify] = useState(false);
 
   async function signInWithEmail() {
     if (!email || !password) {
@@ -59,7 +61,44 @@ export default function AuthScreen() {
     if (error) {
         Alert.alert('Sign Up Failed', error.message);
     } else if (!session) {
-        Alert.alert('Success', 'Please check your inbox for email verification!');
+        // Automatically switch to verify mode
+        setIsVerify(true);
+        Alert.alert(
+          'Check Your Inbox',
+          'We sent a 6-digit confirmation code to your email. Please enter it below.'
+        );
+    } else {
+        // Session exists (Confirm Email is disabled)
+        try {
+            await apiService.syncUser();
+        } catch (e) {
+            console.error("Failed to sync user with backend", e);
+        }
+    }
+    setLoading(false);
+  }
+
+  async function verifyCode() {
+    if (!otp) {
+        Alert.alert('Required', 'Please enter your 6-digit code');
+        return;
+    }
+
+    setLoading(true);
+    const { error } = await supabase.auth.verifyOtp({
+        email,
+        token: otp,
+        type: 'signup',
+    });
+
+    if (error) {
+        Alert.alert('Verification Failed', error.message);
+    } else {
+        try {
+            await apiService.syncUser();
+        } catch (e) {
+            console.error("Failed to sync user with backend", e);
+        }
     }
     setLoading(false);
   }
@@ -87,57 +126,91 @@ export default function AuthScreen() {
                 <Text style={styles.subtitle}>{isLogin ? 'Welcome back! Let\'s eat safe.' : 'Join us to eat safely.'}</Text>
             </View>
 
-            <View style={styles.formContainer}>
-               <View style={styles.inputWrapper}>
-                  <Mail color="#a0a0a0" size={20} style={styles.inputIcon} />
-                  <TextInput
-                    style={styles.input}
-                    onChangeText={setEmail}
-                    value={email}
-                    placeholder="Email Address"
-                    placeholderTextColor="#a0a0a0"
-                    autoCapitalize="none"
-                    keyboardType="email-address"
-                  />
-               </View>
+            {isVerify ? (
+              <View style={styles.formContainer}>
+                 <View style={styles.inputWrapper}>
+                    <Lock color="#a0a0a0" size={20} style={styles.inputIcon} />
+                    <TextInput
+                      style={styles.input}
+                      onChangeText={setOtp}
+                      value={otp}
+                      placeholder="6-Digit Code"
+                      placeholderTextColor="#a0a0a0"
+                      keyboardType="number-pad"
+                      maxLength={6}
+                    />
+                 </View>
+                 <TouchableOpacity
+                      style={styles.buttonPrimary}
+                      onPress={verifyCode}
+                      disabled={loading}
+                      activeOpacity={0.8}
+                  >
+                      {loading ? (
+                           <ActivityIndicator size="small" color="#fff" />
+                      ) : (
+                          <Text style={styles.buttonTextLight}>Verify Email</Text>
+                      )}
+                  </TouchableOpacity>
+                  <View style={styles.toggleContainer}>
+                      <TouchableOpacity onPress={() => setIsVerify(false)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                           <Text style={styles.toggleTextAction}>Back to Sign In</Text>
+                       </TouchableOpacity>
+                  </View>
+              </View>
+            ) : (
+              <View style={styles.formContainer}>
+                 <View style={styles.inputWrapper}>
+                    <Mail color="#a0a0a0" size={20} style={styles.inputIcon} />
+                    <TextInput
+                      style={styles.input}
+                      onChangeText={setEmail}
+                      value={email}
+                      placeholder="Email Address"
+                      placeholderTextColor="#a0a0a0"
+                      autoCapitalize="none"
+                      keyboardType="email-address"
+                    />
+                 </View>
 
-               <View style={styles.inputWrapper}>
-                  <Lock color="#a0a0a0" size={20} style={styles.inputIcon} />
-                  <TextInput
-                    style={styles.input}
-                    onChangeText={setPassword}
-                    value={password}
-                    secureTextEntry
-                    placeholder="Password"
-                    placeholderTextColor="#a0a0a0"
-                    autoCapitalize="none"
-                  />
-               </View>
-                
-               <TouchableOpacity
-                    style={styles.buttonPrimary}
-                    onPress={() => isLogin ? signInWithEmail() : signUpWithEmail()}
-                    disabled={loading}
-                    activeOpacity={0.8}
-                >
-                    {loading ? (
-                         <ActivityIndicator size="small" color="#fff" />
-                    ) : (
-                        <Text style={styles.buttonTextLight}>{isLogin ? 'Sign In' : 'Create Account'}</Text>
-                    )}
-                </TouchableOpacity>
+                 <View style={styles.inputWrapper}>
+                    <Lock color="#a0a0a0" size={20} style={styles.inputIcon} />
+                    <TextInput
+                      style={styles.input}
+                      onChangeText={setPassword}
+                      value={password}
+                      secureTextEntry
+                      placeholder="Password"
+                      placeholderTextColor="#a0a0a0"
+                      autoCapitalize="none"
+                    />
+                 </View>
+                  
+                 <TouchableOpacity
+                      style={styles.buttonPrimary}
+                      onPress={() => isLogin ? signInWithEmail() : signUpWithEmail()}
+                      disabled={loading}
+                      activeOpacity={0.8}
+                  >
+                      {loading ? (
+                           <ActivityIndicator size="small" color="#fff" />
+                      ) : (
+                          <Text style={styles.buttonTextLight}>{isLogin ? 'Sign In' : 'Create Account'}</Text>
+                      )}
+                  </TouchableOpacity>
 
-                <View style={styles.toggleContainer}>
-                    <Text style={styles.toggleTextPreview}>
-                        {isLogin ? "Don't have an account? " : "Already have an account? "}
-                    </Text>
-                    <TouchableOpacity onPress={() => setIsLogin(!isLogin)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                         <Text style={styles.toggleTextAction}>
-                             {isLogin ? "Sign Up" : "Sign In"}
-                         </Text>
-                     </TouchableOpacity>
-                </View>
-            </View>
+                  <View style={styles.toggleContainer}>
+                      <Text style={styles.toggleTextPreview}>
+                          {isLogin ? "Don't have an account? " : "Already have an account? "}
+                      </Text>
+                      <TouchableOpacity onPress={() => setIsLogin(!isLogin)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                           <Text style={styles.toggleTextAction}>
+                               {isLogin ? "Sign Up" : "Sign In"}
+                           </Text>
+                       </TouchableOpacity>
+                  </View>
+              </View>
+            )}
         </View>
       </KeyboardAvoidingView>
     </View>
