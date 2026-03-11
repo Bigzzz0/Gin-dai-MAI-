@@ -3,7 +3,7 @@ import { StyleSheet, View, Text, TextInput, TouchableOpacity, KeyboardAvoidingVi
 import { supabase } from '../src/lib/supabase';
 import { apiService } from '../src/services/api';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Lock, Mail } from 'lucide-react-native';
+import { Lock, Mail, Camera, Utensils } from 'lucide-react-native';
 
 export default function AuthScreen() {
   const [email, setEmail] = useState('');
@@ -79,7 +79,10 @@ export default function AuthScreen() {
       >
         <View style={styles.card}>
             <View style={styles.headerContainer}>
-                <Text style={styles.logo}>📸 🍲</Text>
+                <View style={styles.logoContainer}>
+                    <Camera color="#10b981" size={40} />
+                    <Utensils color="#10b981" size={40} />
+                </View>
                 <Text style={styles.title}>Gin dai MAI!</Text>
                 <Text style={styles.subtitle}>{isLogin ? 'Welcome back! Let\'s eat safe.' : 'Join us to eat safely.'}</Text>
             </View>
@@ -167,22 +170,26 @@ const styles = StyleSheet.create({
      alignItems: 'center',
      marginBottom: 35,
   },
-  logo: {
-    fontSize: 48,
-    marginBottom: 10,
+  logoContainer: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 16,
+    backgroundColor: '#ecfdf5',
+    padding: 16,
+    borderRadius: 24,
   },
   title: {
+      fontFamily: 'Kanit_700Bold',
       fontSize: 32,
-      fontWeight: '800',
       color: '#1e293b',
       marginBottom: 6,
       letterSpacing: -0.5,
   },
   subtitle: {
+      fontFamily: 'Kanit_400Regular',
       fontSize: 15,
       color: '#64748b',
       textAlign: 'center',
-      fontWeight: '500',
   },
   formContainer: {
     width: '100%',
@@ -202,11 +209,11 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   input: {
+      fontFamily: 'Kanit_400Regular',
       flex: 1,
       height: '100%',
       fontSize: 16,
       color: '#0f172a',
-      fontWeight: '500',
   },
   buttonPrimary: {
       backgroundColor: '#10b981',
@@ -222,9 +229,9 @@ const styles = StyleSheet.create({
       elevation: 5,
   },
   buttonTextLight: {
+      fontFamily: 'Kanit_700Bold',
       color: '#fff',
       fontSize: 18,
-      fontWeight: '700',
   },
   toggleContainer: {
       flexDirection: 'row',
@@ -232,13 +239,13 @@ const styles = StyleSheet.create({
       marginTop: 24,
   },
   toggleTextPreview: {
+      fontFamily: 'Kanit_400Regular',
       color: '#64748b',
       fontSize: 15,
-      fontWeight: '500'
   },
   toggleTextAction: {
+      fontFamily: 'Kanit_700Bold',
       color: '#10b981',
       fontSize: 15,
-      fontWeight: '700'
   }
 });

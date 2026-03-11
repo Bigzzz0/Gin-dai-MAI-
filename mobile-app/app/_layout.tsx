@@ -6,6 +6,12 @@ import { useEffect, useState } from 'react';
 import { supabase } from '../src/lib/supabase';
 import { Session } from '@supabase/supabase-js';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useFonts } from 'expo-font';
+import { Kanit_400Regular, Kanit_700Bold } from '@expo-google-fonts/kanit';
+import * as SplashScreen from 'expo-splash-screen';
+
+// Prevent the splash screen from auto-hiding before asset loading is complete.
+SplashScreen.preventAutoHideAsync();
 
 export const unstable_settings = {
   anchor: '(tabs)',
@@ -18,6 +24,17 @@ export default function RootLayout() {
   const segments = useSegments();
   const router = useRouter();
   const navigationState = useRootNavigationState();
+
+  const [fontsLoaded, fontError] = useFonts({
+    Kanit_400Regular,
+    Kanit_700Bold,
+  });
+
+  useEffect(() => {
+    if (fontsLoaded || fontError) {
+      SplashScreen.hideAsync();
+    }
+  }, [fontsLoaded, fontError]);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -43,6 +60,10 @@ export default function RootLayout() {
       router.replace('/(tabs)');
     }
   }, [session, sessionLoaded, segments, navigationState, router]);
+
+  if (!fontsLoaded && !fontError) {
+    return null;
+  }
 
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>

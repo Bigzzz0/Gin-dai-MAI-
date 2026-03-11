@@ -1,6 +1,6 @@
 import {
     View, Text, StyleSheet, Image,
-    TouchableOpacity, ActivityIndicator, Alert, SafeAreaView, Platform
+    TouchableOpacity, ActivityIndicator, Alert, SafeAreaView, Platform, Dimensions
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useStore } from '../src/store/useStore';
@@ -8,6 +8,10 @@ import { apiService } from '../src/services/api';
 import { useState, useEffect } from 'react';
 import { BlurView } from 'expo-blur';
 import { ScanSearch, Undo2, Ban } from 'lucide-react-native';
+import Animated, { useSharedValue, useAnimatedStyle, withRepeat, withTiming, Easing, withSequence } from 'react-native-reanimated';
+import { LinearGradient } from 'expo-linear-gradient';
+
+const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 const LOADING_MESSAGES = [
     'Sending image to AI...',
@@ -23,19 +27,43 @@ export default function PreviewScreen() {
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [loadingMsg, setLoadingMsg] = useState(LOADING_MESSAGES[0]);
 
+    // Animation values
+    const scanLinePosition = useSharedValue(0);
+
+    const scanLineStyle = useAnimatedStyle(() => {
+        return {
+            transform: [{ translateY: scanLinePosition.value }],
+        };
+    });
+
     useEffect(() => {
         let msgInterval: ReturnType<typeof setInterval>;
         if (isAnalyzing) {
+            // Start messaging interval
             let msgIndex = 0;
             msgInterval = setInterval(() => {
                 msgIndex = (msgIndex + 1) % LOADING_MESSAGES.length;
                 setLoadingMsg(LOADING_MESSAGES[msgIndex]);
             }, 3000);
+
+            // Start scanning animation
+            scanLinePosition.value = 0;
+            scanLinePosition.value = withRepeat(
+                withSequence(
+                    withTiming(SCREEN_HEIGHT, { duration: 2000, easing: Easing.inOut(Easing.ease) }),
+                    withTiming(0, { duration: 2000, easing: Easing.inOut(Easing.ease) })
+                ),
+                -1, // infinite loop
+                false
+            );
+        } else {
+            // Stop scanning animation
+            scanLinePosition.value = 0;
         }
         return () => {
             if (msgInterval) clearInterval(msgInterval);
         };
-    }, [isAnalyzing]);
+    }, [isAnalyzing, scanLinePosition]);
 
     const handleAnalyze = async () => {
         if (!currentImageUri) {
@@ -76,7 +104,24 @@ export default function PreviewScreen() {
     return (
         <View style={styles.container}>
             {currentImageUri ? (
-                <Image source={{ uri: currentImageUri }} style={styles.imagePreview} />
+                <View style={styles.imageContainer}>
+                    <Image source={{ uri: currentImageUri }} style={styles.imagePreview} />
+                    {isAnalyzing && (
+                        <View style={StyleSheet.absoluteFillObject}>
+                            {/* Dark overlay while scanning */}
+                            <Animated.View style={[StyleSheet.absoluteFillObject, { backgroundColor: 'rgba(0,0,0,0.3)' }]} />
+                            
+                            {/* Scanning line */}
+                            <Animated.View style={[styles.scanLineContainer, scanLineStyle]}>
+                                <LinearGradient
+                                    colors={['transparent', 'rgba(16, 185, 129, 0.4)', '#10b981']}
+                                    style={styles.scanGradient}
+                                />
+                                <View style={styles.scanLineCore} />
+                            </Animated.View>
+                        </View>
+                    )}
+                </View>
             ) : (
                 <View style={styles.placeholder}>
                     <Ban color="#64748b" size={48} style={{ marginBottom: 16 }} />
@@ -128,11 +173,33 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: '#000',
     },
+    imageContainer: {
+        ...StyleSheet.absoluteFillObject,
+    },
     imagePreview: {
         width: '100%',
         height: '100%',
         resizeMode: 'cover',
+    },
+    scanLineContainer: {
         position: 'absolute',
+        left: 0,
+        right: 0,
+        height: 120, // Height of the gradient tail
+        top: -120, // Start just above the screen
+        zIndex: 10,
+    },
+    scanGradient: {
+        flex: 1,
+    },
+    scanLineCore: {
+        height: 3,
+        backgroundColor: '#34d399',
+        shadowColor: '#10b981',
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 1,
+        shadowRadius: 10,
+        elevation: 5,
     },
     placeholder: {
         flex: 1,

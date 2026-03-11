@@ -6,11 +6,33 @@ import { useRouter } from 'expo-router';
 import { useStore } from '../src/store/useStore';
 import { SAFETY_CONFIG } from '../src/types/scan.types';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Share2, Check, AlertTriangle, ShieldCheck, Info, ScanSearch } from 'lucide-react-native';
+import { Share2, Check, AlertTriangle, ShieldCheck, ShieldAlert, ShieldQuestion, Info, ScanSearch } from 'lucide-react-native';
+import Animated, { FadeInUp, FadeInDown, useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
+import { useEffect } from 'react';
+
+const getHeaderIcon = (level: string) => {
+    if (level === 'SAFE') return <ShieldCheck color="#ffffff" size={64} style={styles.headerIconShadow} />;
+    if (level === 'SUSPICIOUS') return <ShieldQuestion color="#ffffff" size={64} style={styles.headerIconShadow} />;
+    return <ShieldAlert color="#ffffff" size={64} style={styles.headerIconShadow} />;
+};
 
 export default function ResultScreen() {
     const router = useRouter();
     const { lastScanResult, lastScanImageUrl, clearScanResult } = useStore();
+
+    const animatedWidth = useSharedValue(0);
+
+    useEffect(() => {
+        if (lastScanResult) {
+            animatedWidth.value = withSpring(Math.round(lastScanResult.confidence * 100), { damping: 15, stiffness: 90 });
+        }
+    }, [lastScanResult, animatedWidth]);
+
+    const barStyle = useAnimatedStyle(() => {
+        return {
+            width: `${animatedWidth.value}%`,
+        };
+    });
 
     if (!lastScanResult) {
         return (
@@ -35,7 +57,7 @@ export default function ResultScreen() {
     const handleShare = async () => {
         try {
             await Share.share({
-                message: `🍽️ Food Safety Analysis by Gin dai mai!\n\n` +
+                message: `Food Safety Analysis by Gin dai MAI!\n\n` +
                     `Ingredient: ${lastScanResult.foodType}\n` +
                     `Status: ${config.label}\n` +
                     `Confidence: ${confidencePercent}%\n\n` +
@@ -54,7 +76,7 @@ export default function ResultScreen() {
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
             >
-                <Text style={styles.headerEmoji}>{config.emoji}</Text>
+                {getHeaderIcon(lastScanResult.safetyLevel)}
                 <Text style={styles.headerLabel}>{config.label}</Text>
                 <Text style={styles.headerFoodType}>{lastScanResult.foodType}</Text>
             </LinearGradient>
@@ -74,20 +96,18 @@ export default function ResultScreen() {
 
             <View style={styles.contentPadding}>
                 {/* Confidence Card */}
-                <View style={styles.card}>
+                <Animated.View entering={FadeInUp.delay(300).springify()} style={styles.card}>
                     <View style={styles.cardHeader}>
                         <ShieldCheck color="#64748b" size={20} />
                         <Text style={styles.cardTitle}>AI Confidence</Text>
                     </View>
                     <View style={styles.confidenceBarContainer}>
                         <View style={styles.confidenceBar}>
-                            <View
+                            <Animated.View
                                 style={[
                                     styles.confidenceFill,
-                                    {
-                                        width: `${confidencePercent}%` as any,
-                                        backgroundColor: config.color,
-                                    }
+                                    barStyle,
+                                    { backgroundColor: config.color }
                                 ]}
                             />
                         </View>
@@ -95,16 +115,16 @@ export default function ResultScreen() {
                             {confidencePercent}%
                         </Text>
                     </View>
-                </View>
+                </Animated.View>
 
                 {/* Analysis Details */}
-                <View style={styles.card}>
+                <Animated.View entering={FadeInUp.delay(400).springify()} style={styles.card}>
                     <View style={styles.cardHeader}>
                         <Info color="#64748b" size={20} />
                         <Text style={styles.cardTitle}>Analysis Details</Text>
                     </View>
                     <Text style={styles.analysisText}>{lastScanResult.analysisDetail}</Text>
-                </View>
+                </Animated.View>
 
                 {/* Bounding Boxes */}
                 {lastScanResult.boundingBoxes && lastScanResult.boundingBoxes.length > 0 && (
@@ -136,7 +156,7 @@ export default function ResultScreen() {
                 )}
 
                 {/* Bottom Actions */}
-                <View style={styles.buttonRow}>
+                <Animated.View entering={FadeInDown.delay(700).springify()} style={styles.buttonRow}>
                     <TouchableOpacity 
                         style={styles.shareButton} 
                         onPress={handleShare}
@@ -154,7 +174,7 @@ export default function ResultScreen() {
                         <Check color="#fff" size={20} />
                         <Text style={styles.doneButtonText}>Done</Text>
                     </TouchableOpacity>
-                </View>
+                </Animated.View>
             </View>
 
             <View style={{ height: 40 }} />
@@ -201,16 +221,15 @@ const styles = StyleSheet.create({
         borderBottomRightRadius: 30,
         gap: 12,
     },
-    headerEmoji: { 
-        fontSize: 64,
+    headerIconShadow: { 
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.15,
         shadowRadius: 8,
     },
     headerLabel: {
+        fontFamily: 'Kanit_700Bold',
         fontSize: 28,
-        fontWeight: '800',
         color: '#ffffff',
         letterSpacing: 0.5,
     },
@@ -266,11 +285,12 @@ const styles = StyleSheet.create({
         marginBottom: 16,
     },
     cardTitle: {
+        fontFamily: 'Kanit_700Bold',
         fontSize: 16,
-        fontWeight: '700',
         color: '#0f172a',
     },
     analysisText: {
+        fontFamily: 'Kanit_400Regular',
         fontSize: 16,
         color: '#475569',
         lineHeight: 26,
@@ -293,8 +313,8 @@ const styles = StyleSheet.create({
         borderRadius: 4,
     },
     confidenceText: {
+        fontFamily: 'Kanit_700Bold',
         fontSize: 18,
-        fontWeight: '800',
         minWidth: 48,
     },
 
@@ -310,9 +330,9 @@ const styles = StyleSheet.create({
         borderRadius: 4,
     },
     boundingBoxLabel: {
+        fontFamily: 'Kanit_400Regular',
         fontSize: 16,
         color: '#475569',
-        fontWeight: '500',
     },
 
     warningCard: {
@@ -324,11 +344,12 @@ const styles = StyleSheet.create({
         borderColor: '#fde68a',
     },
     warningTitle: {
+        fontFamily: 'Kanit_700Bold',
         fontSize: 16,
-        fontWeight: '700',
         color: '#b45309',
     },
     warningText: {
+        fontFamily: 'Kanit_400Regular',
         fontSize: 15,
         color: '#92400e',
         lineHeight: 24,

@@ -9,6 +9,7 @@ import { useCallback, useState } from 'react';
 import { apiService } from '../../src/services/api';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Camera, Clock, Info, ShieldAlert, ShieldCheck, ShieldQuestion } from 'lucide-react-native';
+import Animated, { FadeIn, Layout } from 'react-native-reanimated';
 
 const getSafetyIcon = (level: string) => {
    if (level === 'SAFE') return <ShieldCheck color="#10b981" size={16} />;
@@ -26,21 +27,25 @@ export default function HistoryScreen() {
         try {
             const response = await apiService.getHistory(1, 20);
             if (response.data) {
-                const mappedHistory = response.data.map((item: any) => ({
-                    id: item.id,
-                    imageUrl: item.imageUrl,
-                    safetyLevel: item.safetyLevel,
-                    foodType: item.foodType,
-                    confidence: item.aiConfidence,
-                    analysisDetail: item.analysisDetail || '',
-                    createdAt: item.createdAt,
-                }));
-                setScanHistory(mappedHistory);
+                // Simulate slight network delay for skeletons
+                setTimeout(() => {
+                    const mappedHistory = response.data.map((item: any) => ({
+                        id: item.id,
+                        imageUrl: item.imageUrl,
+                        safetyLevel: item.safetyLevel,
+                        foodType: item.foodType,
+                        confidence: item.aiConfidence,
+                        analysisDetail: item.analysisDetail || '',
+                        createdAt: item.createdAt,
+                    }));
+                    setScanHistory(mappedHistory);
+                    setLoading(false);
+                }, 500);
+            } else {
+                setLoading(false);
             }
         } catch (error) {
             console.error("Failed to fetch history:", error);
-        } finally {
-            setLoading(false);
         }
     }, [setScanHistory]);
 
@@ -61,7 +66,7 @@ export default function HistoryScreen() {
         });
     };
 
-    if (scanHistory.length === 0) {
+    if (scanHistory.length === 0 && !loading) {
         return (
             <View style={styles.mainContainer}>
                  <LinearGradient colors={['#f8fafc', '#e2e8f0']} style={StyleSheet.absoluteFillObject} />
@@ -84,6 +89,32 @@ export default function HistoryScreen() {
         );
     }
 
+    const renderSkeleton = () => (
+        <View style={styles.card}>
+             <View style={[styles.thumbnail, { backgroundColor: '#e2e8f0' }]} />
+             <View style={styles.cardInfo}>
+                 <View style={{ width: '60%', height: 20, backgroundColor: '#e2e8f0', borderRadius: 4, marginBottom: 8 }} />
+                 <View style={{ width: '40%', height: 24, backgroundColor: '#e2e8f0', borderRadius: 12, marginBottom: 8 }} />
+                 <View style={{ width: '30%', height: 14, backgroundColor: '#e2e8f0', borderRadius: 4 }} />
+             </View>
+        </View>
+    );
+
+    if (loading && scanHistory.length === 0) {
+        return (
+            <View style={styles.mainContainer}>
+                 <LinearGradient colors={['#f8fafc', '#e2e8f0']} style={StyleSheet.absoluteFillObject} />
+                <View style={[styles.container, { paddingHorizontal: 20 }]}>
+                    <View style={[styles.headerContainer, { paddingHorizontal: 0 }]}>
+                       <Text style={styles.headerTitle}>Scan History</Text>
+                       <Text style={styles.headerSubtitle}>Loading your items...</Text>
+                    </View>
+                    {[1, 2, 3, 4, 5].map(i => <View key={i}>{renderSkeleton()}</View>)}
+                </View>
+            </View>
+        );
+    }
+
     return (
         <View style={styles.mainContainer}>
              <LinearGradient colors={['#f8fafc', '#e2e8f0']} style={StyleSheet.absoluteFillObject} />
@@ -101,46 +132,48 @@ export default function HistoryScreen() {
                     refreshControl={
                         <RefreshControl refreshing={loading} onRefresh={fetchHistory} tintColor="#10b981" />
                     }
-                    renderItem={({ item }) => {
+                    renderItem={({ item, index }) => {
                         const config = SAFETY_CONFIG[item.safetyLevel];
                         const confidencePercent = Math.round(item.confidence * 100);
 
                         return (
-                            <TouchableOpacity style={styles.card} activeOpacity={0.7}>
-                                {item.imageUrl ? (
-                                    <Image
-                                        source={{ uri: item.imageUrl }}
-                                        style={styles.thumbnail}
-                                        resizeMode="cover"
-                                    />
-                                ) : (
-                                    <View style={[styles.thumbnail, styles.thumbnailPlaceholder]}>
-                                        <Camera color="#94a3b8" size={32} />
-                                    </View>
-                                )}
+                            <Animated.View layout={Layout.springify()} entering={FadeIn.delay(index * 100)}>
+                                <TouchableOpacity style={styles.card} activeOpacity={0.7}>
+                                    {item.imageUrl ? (
+                                        <Image
+                                            source={{ uri: item.imageUrl }}
+                                            style={styles.thumbnail}
+                                            resizeMode="cover"
+                                        />
+                                    ) : (
+                                        <View style={[styles.thumbnail, styles.thumbnailPlaceholder]}>
+                                            <Camera color="#94a3b8" size={32} />
+                                        </View>
+                                    )}
 
-                                <View style={styles.cardInfo}>
-                                    <Text style={styles.foodType} numberOfLines={1}>{item.foodType}</Text>
-                                    
-                                    <View style={styles.metaRow}>
-                                       <View style={[styles.badge, { backgroundColor: config.bgColor + '20' }]}>
-                                           {getSafetyIcon(item.safetyLevel)}
-                                           <Text style={[styles.badgeText, { color: config.color }]}>
-                                               {config.label}
-                                           </Text>
-                                       </View>
-                                       
-                                       <View style={styles.confidenceBadge}>
-                                            <Text style={styles.confidenceText}>{confidencePercent}%</Text>
-                                       </View>
+                                    <View style={styles.cardInfo}>
+                                        <Text style={styles.foodType} numberOfLines={1}>{item.foodType}</Text>
+                                        
+                                        <View style={styles.metaRow}>
+                                        <View style={[styles.badge, { backgroundColor: config.bgColor + '20' }]}>
+                                            {getSafetyIcon(item.safetyLevel)}
+                                            <Text style={[styles.badgeText, { color: config.color }]}>
+                                                {config.label}
+                                            </Text>
+                                        </View>
+                                        
+                                        <View style={styles.confidenceBadge}>
+                                                <Text style={styles.confidenceText}>{confidencePercent}%</Text>
+                                        </View>
+                                        </View>
+                                        
+                                        <View style={styles.dateRow}>
+                                        <Clock color="#94a3b8" size={14} />
+                                        <Text style={styles.dateText}>{formatDate(item.createdAt)}</Text>
+                                        </View>
                                     </View>
-                                    
-                                    <View style={styles.dateRow}>
-                                       <Clock color="#94a3b8" size={14} />
-                                       <Text style={styles.dateText}>{formatDate(item.createdAt)}</Text>
-                                    </View>
-                                </View>
-                            </TouchableOpacity>
+                                </TouchableOpacity>
+                            </Animated.View>
                         );
                     }}
                 />
@@ -162,15 +195,15 @@ const styles = StyleSheet.create({
         marginBottom: 20,
     },
     headerTitle: {
+        fontFamily: 'Kanit_700Bold',
         fontSize: 32,
-        fontWeight: '800',
         color: '#0f172a',
         letterSpacing: -0.5,
     },
     headerSubtitle: {
+        fontFamily: 'Kanit_400Regular',
         fontSize: 16,
         color: '#64748b',
-        fontWeight: '500',
         marginTop: 4,
     },
     listContainer: {
@@ -195,12 +228,13 @@ const styles = StyleSheet.create({
         marginBottom: 24,
     },
     emptyTitle: {
+        fontFamily: 'Kanit_700Bold',
         fontSize: 24,
-        fontWeight: '700',
         color: '#1e293b',
         marginBottom: 12,
     },
     emptySubtitle: {
+        fontFamily: 'Kanit_400Regular',
         fontSize: 16,
         color: '#64748b',
         textAlign: 'center',
@@ -258,8 +292,8 @@ const styles = StyleSheet.create({
         paddingVertical: 4,
     },
     foodType: {
+        fontFamily: 'Kanit_700Bold',
         fontSize: 18,
-        fontWeight: '700',
         color: '#0f172a',
     },
     metaRow: {
@@ -276,8 +310,8 @@ const styles = StyleSheet.create({
         gap: 6,
     },
     badgeText: {
+        fontFamily: 'Kanit_700Bold',
         fontSize: 13,
-        fontWeight: '700',
     },
     confidenceBadge: {
         backgroundColor: '#f8fafc',
@@ -288,8 +322,8 @@ const styles = StyleSheet.create({
         borderColor: '#e2e8f0',
     },
     confidenceText: {
+        fontFamily: 'Kanit_700Bold',
         fontSize: 12,
-        fontWeight: '600',
         color: '#64748b',
     },
     dateRow: {
@@ -298,8 +332,8 @@ const styles = StyleSheet.create({
         gap: 6,
     },
     dateText: {
+        fontFamily: 'Kanit_400Regular',
         fontSize: 13,
         color: '#94a3b8',
-        fontWeight: '500',
     },
 });

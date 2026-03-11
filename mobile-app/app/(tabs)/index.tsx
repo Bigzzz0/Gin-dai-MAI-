@@ -19,7 +19,7 @@ export default function HomeScreen() {
                <ShieldCheck color="#10b981" size={20} />
                <Text style={styles.badgeText}>AI Safety Scanner</Text>
             </View>
-            <Text style={styles.title}>Gin dai MAI! 📸🍲</Text>
+            <Text style={styles.title}>Gin dai MAI!</Text>
             <Text style={styles.subtitle}>Scan your food before eating to check for safety and get nutritional insights.</Text>
           </View>
 
@@ -78,6 +78,7 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     padding: 24,
     paddingTop: 80,
+    paddingBottom: 120,
   },
   header: {
     marginBottom: 40,
@@ -93,23 +94,23 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   badgeText: {
+    fontFamily: 'Kanit_700Bold',
     color: '#10b981',
-    fontWeight: '700',
     fontSize: 14,
     marginLeft: 6,
   },
   title: {
+    fontFamily: 'Kanit_700Bold',
     fontSize: 40,
-    fontWeight: '800',
     color: '#0f172a',
     marginBottom: 12,
     letterSpacing: -1,
   },
   subtitle: {
+    fontFamily: 'Kanit_400Regular',
     fontSize: 16,
     color: '#64748b',
     lineHeight: 24,
-    fontWeight: '500',
   },
   cardsContainer: {
     gap: 20,
@@ -157,25 +158,25 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   cardTitleLight: {
+    fontFamily: 'Kanit_700Bold',
     fontSize: 24,
-    fontWeight: '700',
     color: '#fff',
     marginBottom: 8,
   },
   cardDescLight: {
+    fontFamily: 'Kanit_400Regular',
     fontSize: 15,
     color: 'rgba(255,255,255,0.8)',
-    fontWeight: '500',
   },
   cardTitleDark: {
+    fontFamily: 'Kanit_700Bold',
     fontSize: 24,
-    fontWeight: '700',
     color: '#1e293b',
     marginBottom: 8,
   },
   cardDescDark: {
+    fontFamily: 'Kanit_400Regular',
     fontSize: 15,
     color: '#64748b',
-    fontWeight: '500',
   },
 });
