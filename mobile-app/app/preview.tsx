@@ -107,12 +107,12 @@ export default function PreviewScreen() {
         <View style={styles.container}>
             {currentImageUri ? (
                 <View style={styles.imageContainer}>
-                    <Image source={{ uri: currentImageUri }} style={styles.imagePreview} />
+                    <Image source={{ uri: currentImageUri }} style={styles.imagePreview} resizeMode="contain" />
                     {isAnalyzing && (
                         <View style={StyleSheet.absoluteFillObject}>
                             {/* Dark overlay while scanning */}
                             <Animated.View style={[StyleSheet.absoluteFillObject, { backgroundColor: 'rgba(0,0,0,0.3)' }]} />
-                            
+
                             {/* Scanning line */}
                             <Animated.View style={[styles.scanLineContainer, scanLineStyle]}>
                                 <LinearGradient
@@ -133,7 +133,7 @@ export default function PreviewScreen() {
 
             <SafeAreaView style={styles.overlay}>
                 <View style={{ flex: 1 }} />
-                
+
                 <View style={styles.bottomControls}>
                     {isAnalyzing ? (
                         <BlurView intensity={60} tint="dark" style={styles.loadingCard}>
@@ -177,11 +177,14 @@ const styles = StyleSheet.create({
     },
     imageContainer: {
         ...StyleSheet.absoluteFillObject,
+        backgroundColor: '#0f172a',
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 12,
     },
     imagePreview: {
         width: '100%',
         height: '100%',
-        resizeMode: 'cover',
     },
     scanLineContainer: {
         position: 'absolute',
