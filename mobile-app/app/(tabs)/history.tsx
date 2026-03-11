@@ -32,12 +32,12 @@ export default function HistoryScreen() {
                     const mappedHistory = response.data.map((item: any) => ({
                         id: item.id,
                         imageUrl: item.imageUrl,
-                        isFood: item.isFood ?? true,
+                        isFood: item.isFood ?? item.aiResponseJson?.isFood ?? true,
                         safetyLevel: item.safetyLevel,
                         foodType: item.foodType,
                         confidence: item.aiConfidence,
-                        analysisDetail: item.analysisDetail || '',
-                        boundingBoxes: item.boundingBoxes || [],
+                        analysisDetail: item.analysisDetail || item.aiResponseJson?.analysisDetail || '',
+                        boundingBoxes: item.boundingBoxes || item.aiResponseJson?.boundingBoxes || [],
                         createdAt: item.createdAt,
                     }));
                     setScanHistory(mappedHistory);
