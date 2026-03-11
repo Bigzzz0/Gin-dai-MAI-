@@ -20,6 +20,8 @@ export default function TabLayout() {
             left: 20,
             right: 20,
             height: 64,
+            paddingBottom: 0,
+            paddingTop: Platform.OS === 'ios' ? 15 : 0,
             borderRadius: 32,
             borderTopWidth: 0,
             backgroundColor: Platform.OS === 'ios' ? 'transparent' : 'rgba(255, 255, 255, 0.95)',

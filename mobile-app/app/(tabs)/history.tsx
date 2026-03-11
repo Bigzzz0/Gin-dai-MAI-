@@ -19,7 +19,7 @@ const getSafetyIcon = (level: string) => {
 
 export default function HistoryScreen() {
     const router = useRouter();
-    const { scanHistory, setScanHistory } = useStore();
+    const { scanHistory, setScanHistory, setScanResult } = useStore();
     const [loading, setLoading] = useState(false);
 
     const fetchHistory = useCallback(async () => {
@@ -32,10 +32,12 @@ export default function HistoryScreen() {
                     const mappedHistory = response.data.map((item: any) => ({
                         id: item.id,
                         imageUrl: item.imageUrl,
+                        isFood: item.isFood ?? true,
                         safetyLevel: item.safetyLevel,
                         foodType: item.foodType,
                         confidence: item.aiConfidence,
                         analysisDetail: item.analysisDetail || '',
+                        boundingBoxes: item.boundingBoxes || [],
                         createdAt: item.createdAt,
                     }));
                     setScanHistory(mappedHistory);
@@ -138,7 +140,21 @@ export default function HistoryScreen() {
 
                         return (
                             <Animated.View layout={Layout.springify()} entering={FadeIn.delay(index * 100)}>
-                                <TouchableOpacity style={styles.card} activeOpacity={0.7}>
+                                <TouchableOpacity 
+                                    style={styles.card} 
+                                    activeOpacity={0.7}
+                                    onPress={() => {
+                                        setScanResult({
+                                            isFood: true,
+                                            safetyLevel: item.safetyLevel,
+                                            foodType: item.foodType,
+                                            confidence: item.confidence,
+                                            analysisDetail: item.analysisDetail,
+                                            boundingBoxes: []
+                                        }, item.id, item.imageUrl);
+                                        router.push('/result');
+                                    }}
+                                >
                                     {item.imageUrl ? (
                                         <Image
                                             source={{ uri: item.imageUrl }}
@@ -208,7 +224,7 @@ const styles = StyleSheet.create({
     },
     listContainer: {
         paddingHorizontal: 20,
-        paddingBottom: 40,
+        paddingBottom: 140,
     },
 
     // Empty State

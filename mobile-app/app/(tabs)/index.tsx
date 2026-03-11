@@ -3,10 +3,13 @@ import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Camera, Image as ImageIcon, ShieldCheck, LogOut } from 'lucide-react-native';
 import { BlurView } from 'expo-blur';
+import * as ImagePicker from 'expo-image-picker';
 import { supabase } from '../../src/lib/supabase';
+import { useStore } from '../../src/store/useStore';
 
 export default function HomeScreen() {
   const router = useRouter();
+  const { setCurrentImageUri } = useStore();
 
   const handleLogout = async () => {
     Alert.alert('Logout', 'Are you sure you want to log out?', [
@@ -15,6 +18,25 @@ export default function HomeScreen() {
           await supabase.auth.signOut();
       }}
     ]);
+  };
+
+  const pickImage = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission Denied', 'Sorry, we need camera roll permissions to make this work!');
+      return;
+    }
+
+    let result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      quality: 0.8,
+    });
+
+    if (!result.canceled && result.assets && result.assets.length > 0) {
+      setCurrentImageUri(result.assets[0].uri);
+      router.push('/preview');
+    }
   };
 
   return (
@@ -61,9 +83,7 @@ export default function HomeScreen() {
 
              <TouchableOpacity
                 style={styles.cardSecondary}
-                onPress={() => {
-                  // TODO: Pick from gallery using expo-image-picker
-                }}
+                onPress={pickImage}
                 activeOpacity={0.7}
              >
                 {Platform.OS === 'ios' ? (
@@ -80,6 +100,9 @@ export default function HomeScreen() {
                 </View>
              </TouchableOpacity>
           </View>
+          
+          {/* Spacer to avoid tab bar overlap */}
+          <View style={{ height: 100 }} />
       </ScrollView>
     </View>
   );
@@ -93,7 +116,7 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     padding: 24,
     paddingTop: 80,
-    paddingBottom: 120,
+    paddingBottom: 160,
   },
   header: {
     marginBottom: 40,

@@ -3,14 +3,25 @@ import { v4 as uuidv4 } from "uuid";
 import { analyzeImageBuffer } from "../services/ai.service";
 import { uploadImageToStorage } from "../services/supabase.service";
 import { prisma } from "../lib/prisma";
+import { verifyAuth } from "./auth.routes";
 
 export async function scanRoutes(fastify: FastifyInstance) {
-  fastify.post("/analyze", async (request: FastifyRequest, reply: FastifyReply) => {
+  fastify.post("/analyze", {
+    preHandler: [verifyAuth],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
 
-    // ใช้ test user ชั่วคราว (ยังไม่มีระบบ Login)
-    const user = { id: "test-user-001" };
+    const supabaseUser = (request as any).supabaseUser;
+    
+    // Find the corresponding user in our database
+    const user = await prisma.user.findUnique({
+      where: { supabaseAuthId: supabaseUser.id },
+      select: { id: true },
+    });
 
-    // 1. Parse the uploaded file (multipart)
+    if (!user) {
+      return reply.status(404).send({ error: "User not found in system" });
+    }
+
     const data = await request.file();
     if (!data) {
       return reply.status(400).send({ error: "No image file provided" });

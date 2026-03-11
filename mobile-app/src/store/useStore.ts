@@ -4,10 +4,12 @@ import { AIScanResult } from '../types/scan.types';
 export interface ScanHistoryItem {
     id: string;
     imageUrl: string;
+    isFood: boolean;
     safetyLevel: 'SAFE' | 'SUSPICIOUS' | 'DANGEROUS';
     foodType: string;
     confidence: number;
     analysisDetail: string;
+    boundingBoxes?: any[];
     createdAt: string;
 }
 

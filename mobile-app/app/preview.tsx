@@ -81,10 +81,12 @@ export default function PreviewScreen() {
             addScanToHistory({
                 id: response.scanId,
                 imageUrl: response.imageUrl,
+                isFood: response.result.isFood,
                 safetyLevel: response.result.safetyLevel,
                 foodType: response.result.foodType,
                 confidence: response.result.confidence,
                 analysisDetail: response.result.analysisDetail,
+                boundingBoxes: response.result.boundingBoxes || [],
                 createdAt: new Date().toISOString(),
             });
 
