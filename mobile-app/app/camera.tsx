@@ -58,13 +58,13 @@ export default function CameraScreen() {
                 const photo = await cameraRef.current.takePictureAsync({
                     quality: 0.8,
                 });
-                
+
                 captureScale.value = withSpring(1);
-                
+
                 if (photo) {
                     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
                     setCurrentImageUri(photo.uri);
-                    router.push('/preview');
+                    router.push('/crop');
                 }
             } catch (error) {
                 console.error('Failed to take picture:', error);
@@ -98,11 +98,11 @@ export default function CameraScreen() {
                 )}
 
                 <View style={[styles.overlay, { paddingTop: Math.max(insets.top, 20), paddingBottom: Math.max(insets.bottom, 20) }]}>
-                    
+
                     {/* Top Bar */}
                     <View style={styles.topBar}>
-                        <TouchableOpacity 
-                            style={styles.iconButton} 
+                        <TouchableOpacity
+                            style={styles.iconButton}
                             onPress={() => router.back()}
                             activeOpacity={0.7}
                         >
@@ -112,7 +112,7 @@ export default function CameraScreen() {
                         </TouchableOpacity>
 
                         <View style={styles.topRightControls}>
-                            <TouchableOpacity 
+                            <TouchableOpacity
                                 style={[styles.iconButton, { marginRight: 12 }]}
                                 onPress={() => setFlash(f => f === 'off' ? 'on' : f === 'on' ? 'auto' : 'off')}
                                 activeOpacity={0.7}
@@ -124,7 +124,7 @@ export default function CameraScreen() {
                                 </BlurView>
                             </TouchableOpacity>
 
-                            <TouchableOpacity 
+                            <TouchableOpacity
                                 style={styles.iconButton}
                                 onPress={() => setShowGrid(!showGrid)}
                                 activeOpacity={0.7}
@@ -139,7 +139,7 @@ export default function CameraScreen() {
                     <View style={styles.bottomArea}>
                         {/* Zoom Control */}
                         <View style={styles.zoomContainer}>
-                            <TouchableOpacity 
+                            <TouchableOpacity
                                 style={styles.zoomButton}
                                 onPress={() => setZoom(z => z === 0 ? 0.02 : 0)}
                             >
@@ -152,7 +152,7 @@ export default function CameraScreen() {
                         {/* Bottom Controls */}
                         <View style={styles.bottomBar}>
                             <View style={styles.controlsRow}>
-                                
+
                                 {/* Dummy view for symmetry */}
                                 <View style={{ width: 50 }} />
 
@@ -167,7 +167,7 @@ export default function CameraScreen() {
                                 </TouchableOpacity>
 
                                 {/* Flip Camera Button */}
-                                <TouchableOpacity 
+                                <TouchableOpacity
                                     style={styles.iconButton}
                                     onPress={toggleCameraFacing}
                                     activeOpacity={0.7}

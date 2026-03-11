@@ -11,16 +11,21 @@ export async function scanRoutes(fastify: FastifyInstance) {
   }, async (request: FastifyRequest, reply: FastifyReply) => {
 
     const supabaseUser = (request as any).supabaseUser;
-    
-    // Find the corresponding user in our database
-    const user = await prisma.user.findUnique({
+
+    // Auto-upsert user: create if not exists (handles cases where /auth/sync was never called)
+    const user = await prisma.user.upsert({
       where: { supabaseAuthId: supabaseUser.id },
+      update: {
+        email: supabaseUser.email ?? "",
+        name: supabaseUser.user_metadata?.full_name ?? null,
+      },
+      create: {
+        supabaseAuthId: supabaseUser.id,
+        email: supabaseUser.email ?? "",
+        name: supabaseUser.user_metadata?.full_name ?? null,
+      },
       select: { id: true },
     });
-
-    if (!user) {
-      return reply.status(404).send({ error: "User not found in system" });
-    }
 
     const data = await request.file();
     if (!data) {
