@@ -69,7 +69,7 @@ export default function ProfileScreen() {
     const pickImage = async () => {
         try {
             const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
-            
+
             if (!permissionResult.granted) {
                 Alert.alert(
                     'ต้องการสิทธิ์',
@@ -97,33 +97,31 @@ export default function ProfileScreen() {
     };
 
     const uploadAvatar = async (uri: string) => {
+        if (!user?.id) {
+            Alert.alert('ข้อผิดพลาด', 'ไม่พบข้อมูลผู้ใช้');
+            return;
+        }
+
         setSaving(true);
         try {
             // Upload to Supabase Storage
-            const fileExt = uri.split('.').pop()?.toLowerCase() || 'jpg';
-            const fileName = `${user?.id}/${Date.now()}.${fileExt}`;
+            const publicUrl = await apiService.uploadAvatar(uri, user.id);
 
-            const formData = new FormData();
-            formData.append('file', {
-                uri,
-                name: fileName,
-                type: `image/${fileExt}`,
-            } as any);
-
-            // Get presigned URL from backend or upload directly
-            // For now, we'll just update the metadata with local URI
-            // In production, you should upload to Supabase Storage first
-            
+            // Update user metadata in Supabase Auth
             const { error } = await supabase.auth.updateUser({
                 data: {
-                    avatar_url: uri,
+                    avatar_url: publicUrl,
                     display_name: displayName,
                 },
             });
 
             if (error) throw error;
 
+            // Update backend database
+            await apiService.updateProfile(displayName, publicUrl);
+
             Alert.alert('สำเร็จ', 'อัปโหลดรูปโปรไฟล์เรียบร้อยแล้ว');
+            loadUserProfile(); // Reload profile to get updated data
         } catch (error: any) {
             console.error('Error uploading avatar:', error);
             Alert.alert('ข้อผิดพลาด', error.message || 'ไม่สามารถอัปโหลดรูปภาพได้');
@@ -135,6 +133,7 @@ export default function ProfileScreen() {
     const handleSaveProfile = async () => {
         setSaving(true);
         try {
+            // Update Supabase Auth metadata
             const { error } = await supabase.auth.updateUser({
                 data: {
                     display_name: displayName,
@@ -143,8 +142,12 @@ export default function ProfileScreen() {
 
             if (error) throw error;
 
+            // Update backend database
+            await apiService.updateProfile(displayName, avatarUrl || undefined);
+
             Alert.alert('สำเร็จ', 'บันทึกข้อมูลเรียบร้อยแล้ว');
             setIsEditing(false);
+            loadUserProfile(); // Reload to get updated data
         } catch (error: any) {
             console.error('Error saving profile:', error);
             Alert.alert('ข้อผิดพลาด', error.message || 'ไม่สามารถบันทึกข้อมูลได้');

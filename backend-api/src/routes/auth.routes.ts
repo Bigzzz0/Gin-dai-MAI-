@@ -93,6 +93,7 @@ export async function authRoutes(fastify: FastifyInstance) {
     const supabaseUser = (request as any).supabaseUser;
     const body = request.body as { name?: string; avatarUrl?: string };
 
+    // Update user in our database
     const user = await prisma.user.update({
       where: { supabaseAuthId: supabaseUser.id },
       data: {
@@ -100,13 +101,31 @@ export async function authRoutes(fastify: FastifyInstance) {
       },
     });
 
-    // Also update Supabase auth metadata
-    await getSupabaseAdmin().auth.updateUserById(supabaseUser.id, {
-      user_metadata: {
-        display_name: body.name,
-        avatar_url: body.avatarUrl,
-      },
-    });
+    // Update Supabase auth metadata using admin REST API
+    const supabaseUrl = process.env.SUPABASE_URL;
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    
+    if (supabaseUrl && supabaseServiceKey) {
+      try {
+        await fetch(`${supabaseUrl}/auth/v1/admin/users/${supabaseUser.id}`, {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${supabaseServiceKey}`,
+            'apikey': supabaseServiceKey,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            user_metadata: {
+              display_name: body.name,
+              avatar_url: body.avatarUrl,
+            },
+          }),
+        });
+      } catch (error: any) {
+        fastify.log.error({ err: error }, 'Failed to update Supabase user metadata');
+        // Continue anyway - local DB update succeeded
+      }
+    }
 
     return reply.status(200).send({ user });
   });
