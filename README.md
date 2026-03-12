@@ -1,4 +1,4 @@
-<!-- markdownlint-disable MD033 -->
+<!-- markdownlint-disable MD033 MD041 -->
 <div align="center">
   <img src="https://avatars.githubusercontent.com/u/12504344?s=200&v=4" width="80" alt="Expo" style="border-radius: 20%;" />
   <h1>📸🍲 Gin dai MAI! (กินได้ไหม)</h1>

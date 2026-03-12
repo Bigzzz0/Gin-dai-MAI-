@@ -12,9 +12,9 @@ export default function HomeScreen() {
   const { setCurrentImageUri } = useStore();
 
   const handleLogout = async () => {
-    Alert.alert('Logout', 'Are you sure you want to log out?', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Logout', style: 'destructive', onPress: async () => {
+    Alert.alert('ออกจากระบบ', 'คุณแน่ใจหรือไม่ว่าต้องการออกจากระบบ?', [
+      { text: 'ยกเลิก', style: 'cancel' },
+      { text: 'ออกจากระบบ', style: 'destructive', onPress: async () => {
           await supabase.auth.signOut();
       }}
     ]);
@@ -23,7 +23,7 @@ export default function HomeScreen() {
   const pickImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('Permission Denied', 'Sorry, we need camera roll permissions to make this work!');
+      Alert.alert('ปฏิเสธการเข้าถึง', 'ขออภัย เราต้องขออนุญาตเข้าถึงรูปภาพเพื่อใช้งานส่วนนี้!');
       return;
     }
 
@@ -50,14 +50,14 @@ export default function HomeScreen() {
             <View style={styles.headerTopRow}>
                 <View style={styles.badgeContainer}>
                    <ShieldCheck color="#10b981" size={20} />
-                   <Text style={styles.badgeText}>AI Safety Scanner</Text>
+                   <Text style={styles.badgeText}>สแกนเนอร์ความปลอดภัย AI</Text>
                 </View>
                 <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
                     <LogOut color="#64748b" size={22} />
                 </TouchableOpacity>
             </View>
             <Text style={styles.title}>Gin dai MAI!</Text>
-            <Text style={styles.subtitle}>Scan your food before eating to check for safety and get nutritional insights.</Text>
+            <Text style={styles.subtitle}>สแกนอาหารก่อนทานเพื่อเช็กความปลอดภัย!</Text>
           </View>
 
           <View style={styles.cardsContainer}>
@@ -76,8 +76,8 @@ export default function HomeScreen() {
                    <View style={styles.iconContainerLight}>
                       <Camera color="#10b981" size={32} />
                    </View>
-                   <Text style={styles.cardTitleLight}>Take a Photo</Text>
-                   <Text style={styles.cardDescLight}>Use your camera to scan food instantly</Text>
+                   <Text style={styles.cardTitleLight}>ถ่ายภาพ</Text>
+                   <Text style={styles.cardDescLight}>ใช้กล้องของคุณเพื่อสแกนอาหารทันที</Text>
                 </View>
              </TouchableOpacity>
 
@@ -95,8 +95,8 @@ export default function HomeScreen() {
                    <View style={styles.iconContainerDark}>
                       <ImageIcon color="#64748b" size={28} />
                    </View>
-                   <Text style={styles.cardTitleDark}>Upload Image</Text>
-                   <Text style={styles.cardDescDark}>Choose a photo from your gallery</Text>
+                   <Text style={styles.cardTitleDark}>อัปโหลดรูปภาพ</Text>
+                   <Text style={styles.cardDescDark}>เลือกรูปภาพจากแกลเลอรีของคุณ</Text>
                 </View>
              </TouchableOpacity>
           </View>

@@ -1,6 +1,6 @@
 import {
     View, Text, StyleSheet, FlatList,
-    TouchableOpacity, Image, RefreshControl, Platform
+    TouchableOpacity, Image, RefreshControl, Platform, Alert
 } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useStore } from '../../src/store/useStore';
@@ -8,7 +8,7 @@ import { SAFETY_CONFIG } from '../../src/types/scan.types';
 import { useCallback, useState } from 'react';
 import { apiService } from '../../src/services/api';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Camera, Clock, Info, ShieldAlert, ShieldCheck, ShieldQuestion } from 'lucide-react-native';
+import { Camera, Clock, Info, ShieldAlert, ShieldCheck, ShieldQuestion, Trash2 } from 'lucide-react-native';
 import Animated, { FadeIn, Layout } from 'react-native-reanimated';
 
 const getSafetyIcon = (level: string) => {
@@ -68,6 +68,31 @@ export default function HistoryScreen() {
         });
     };
 
+    const handleDelete = (id: string) => {
+        Alert.alert(
+            'ลบประวัติ',
+            'คุณแน่ใจหรือไม่ว่าต้องการลบประวัติการสแกนนี้?',
+            [
+                { text: 'ยกเลิก', style: 'cancel' },
+                {
+                    text: 'ลบ',
+                    style: 'destructive',
+                    onPress: async () => {
+                        try {
+                            setLoading(true);
+                            await apiService.deleteScan(id);
+                            fetchHistory();
+                        } catch (error) {
+                            console.error('Failed to delete scan:', error);
+                            setLoading(false);
+                            Alert.alert('เกิดข้อผิดพลาด', 'ไม่สามารถลบประวัติได้ กรุณาลองใหม่');
+                        }
+                    }
+                }
+            ]
+        );
+    };
+
     if (scanHistory.length === 0 && !loading) {
         return (
             <View style={styles.mainContainer}>
@@ -76,15 +101,15 @@ export default function HistoryScreen() {
                     <View style={styles.emptyIconContainer}>
                          <Info color="#94a3b8" size={48} />
                     </View>
-                    <Text style={styles.emptyTitle}>No Scan History</Text>
-                    <Text style={styles.emptySubtitle}>Start scanning your food to build up your history and ensure safety.</Text>
+                    <Text style={styles.emptyTitle}>ไม่มีประวัติการสแกน</Text>
+                    <Text style={styles.emptySubtitle}>เริ่มสแกนอาหารเพื่อตรวจสอบความปลอดภัยและบันทึกประวัติของคุณ</Text>
                     <TouchableOpacity
                         style={styles.scanButton}
                         onPress={() => router.push('/camera')}
                         activeOpacity={0.8}
                     >
                         <Camera color="#fff" size={20} style={{ marginRight: 8 }}/>
-                        <Text style={styles.scanButtonText}>Scan Now</Text>
+                        <Text style={styles.scanButtonText}>สแกนเลย</Text>
                     </TouchableOpacity>
                 </View>
             </View>
@@ -108,8 +133,8 @@ export default function HistoryScreen() {
                  <LinearGradient colors={['#f8fafc', '#e2e8f0']} style={StyleSheet.absoluteFillObject} />
                 <View style={[styles.container, { paddingHorizontal: 20 }]}>
                     <View style={[styles.headerContainer, { paddingHorizontal: 0 }]}>
-                       <Text style={styles.headerTitle}>Scan History</Text>
-                       <Text style={styles.headerSubtitle}>Loading your items...</Text>
+                       <Text style={styles.headerTitle}>ประวัติการสแกน</Text>
+                       <Text style={styles.headerSubtitle}>กำลังโหลดข้อมูล...</Text>
                     </View>
                     {[1, 2, 3, 4, 5].map(i => <View key={i}>{renderSkeleton()}</View>)}
                 </View>
@@ -122,8 +147,8 @@ export default function HistoryScreen() {
              <LinearGradient colors={['#f8fafc', '#e2e8f0']} style={StyleSheet.absoluteFillObject} />
              <View style={styles.container}>
                 <View style={styles.headerContainer}>
-                   <Text style={styles.headerTitle}>Scan History</Text>
-                   <Text style={styles.headerSubtitle}>{scanHistory.length} items logged</Text>
+                   <Text style={styles.headerTitle}>ประวัติการสแกน</Text>
+                   <Text style={styles.headerSubtitle}>บันทึกแล้ว {scanHistory.length} รายการ</Text>
                 </View>
 
                 <FlatList
@@ -168,24 +193,33 @@ export default function HistoryScreen() {
                                     )}
 
                                     <View style={styles.cardInfo}>
-                                        <Text style={styles.foodType} numberOfLines={1}>{item.foodType}</Text>
+                                        <View style={styles.cardHeaderRow}>
+                                            <Text style={styles.foodType} numberOfLines={1}>{item.foodType}</Text>
+                                            <TouchableOpacity 
+                                                onPress={() => handleDelete(item.id)}
+                                                style={styles.deleteButton}
+                                                activeOpacity={0.6}
+                                            >
+                                                <Trash2 color="#ef4444" size={18} />
+                                            </TouchableOpacity>
+                                        </View>
                                         
                                         <View style={styles.metaRow}>
-                                        <View style={[styles.badge, { backgroundColor: config.bgColor + '20' }]}>
-                                            {getSafetyIcon(item.safetyLevel)}
-                                            <Text style={[styles.badgeText, { color: config.color }]}>
-                                                {config.label}
-                                            </Text>
-                                        </View>
-                                        
-                                        <View style={styles.confidenceBadge}>
+                                            <View style={[styles.badge, { backgroundColor: config.bgColor + '20' }]}>
+                                                {getSafetyIcon(item.safetyLevel)}
+                                                <Text style={[styles.badgeText, { color: config.color }]}>
+                                                    {config.label}
+                                                </Text>
+                                            </View>
+                                            
+                                            <View style={styles.confidenceBadge}>
                                                 <Text style={styles.confidenceText}>{confidencePercent}%</Text>
-                                        </View>
+                                            </View>
                                         </View>
                                         
                                         <View style={styles.dateRow}>
-                                        <Clock color="#94a3b8" size={14} />
-                                        <Text style={styles.dateText}>{formatDate(item.createdAt)}</Text>
+                                            <Clock color="#94a3b8" size={14} />
+                                            <Text style={styles.dateText}>{formatDate(item.createdAt)}</Text>
                                         </View>
                                     </View>
                                 </TouchableOpacity>
@@ -306,6 +340,15 @@ const styles = StyleSheet.create({
         marginLeft: 16,
         justifyContent: 'space-between',
         paddingVertical: 4,
+    },
+    cardHeaderRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'flex-start',
+    },
+    deleteButton: {
+        padding: 4,
+        marginLeft: 8,
     },
     foodType: {
         fontFamily: 'Kanit_700Bold',
