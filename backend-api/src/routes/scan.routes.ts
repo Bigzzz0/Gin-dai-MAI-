@@ -28,50 +28,54 @@ export async function scanRoutes(fastify: FastifyInstance) {
       select: { id: true },
     });
 
-    // 1. Save all multipart files to a temp location (handles both file & field parts cleanly)
-    let savedFiles: any[];
+    // 1. Manually iterate over parts to see what exactly is coming in
+    let imageBuffer: Buffer | null = null;
+    let imageMimetype = "";
+    let userNote: string | undefined = undefined;
+
     try {
-      savedFiles = await request.saveRequestFiles();
+      for await (const part of request.parts()) {
+        fastify.log.info(`Received part: ${part.type} | name: ${part.fieldname} | mimetype: ${part.type === 'file' ? part.mimetype : 'N/A'}`);
+        if (part.type === 'file' && part.fieldname === 'file') {
+          imageMimetype = part.mimetype;
+          imageBuffer = await part.toBuffer();
+        } else if (part.type === 'field' && part.fieldname === 'note') {
+          userNote = part.value as string;
+        } else if (part.type === 'field' && part.fieldname === 'file') {
+          // If RN fetch sent the file as a string field due to stringification error
+          fastify.log.error(`File was received as a text FIELD with value: ${part.value}`);
+        }
+      }
     } catch (err: any) {
       fastify.log.error("multipart parse failed:", err);
       return reply.status(400).send({ error: "Failed to parse request. Please try again." });
     }
 
-    // Extract the image file part and optional 'note' text field
-    const imagePart = savedFiles.find((f) => f.fieldname === "file" && f.type === "file");
-    const notePart = savedFiles.find((f) => f.fieldname === "note" && f.type === "field");
-    const userNote: string | undefined = notePart ? (notePart as any).value : undefined;
-
-    if (!imagePart) {
+    if (!imageBuffer) {
+      fastify.log.warn("400 Error: No image file provided in FormData");
       return reply.status(400).send({ error: "No image file provided" });
     }
 
     const allowedMimeTypes = ["image/jpeg", "image/png", "image/webp"];
-    if (!allowedMimeTypes.includes(imagePart.mimetype)) {
+    if (!allowedMimeTypes.includes(imageMimetype)) {
+      fastify.log.warn(`400 Error: Invalid file type ${imageMimetype}`);
       return reply.status(400).send({
         error: "Invalid file type. Only JPEG, PNG, and WebP are supported.",
       });
     }
 
-    // 2. Read the temp file into a buffer
-    let imageBuffer: Buffer;
-    try {
-      imageBuffer = fs.readFileSync(imagePart.filepath);
-    } catch (err) {
-      return reply.status(500).send({ error: "Failed to read uploaded file." });
-    }
-
     if (imageBuffer.length > 10 * 1024 * 1024) {
+      fastify.log.warn("400 Error: File too large");
       return reply.status(400).send({ error: "File too large. Max 10MB." });
     }
 
     // 3. Upload image to Supabase Storage
-    const fileExt = imagePart.mimetype.split("/")[1];
+    const fileExt = imageMimetype.split("/")[1];
     const storageFileName = `${user.id}/${uuidv4()}.${fileExt}`;
     let imageUrl: string;
 
     try {
-      imageUrl = await uploadImageToStorage(imageBuffer, storageFileName, imagePart.mimetype);
+      imageUrl = await uploadImageToStorage(imageBuffer, storageFileName, imageMimetype);
     } catch (err: any) {
       fastify.log.error(err);
       return reply.status(500).send({ error: "Failed to upload image to storage" });
@@ -82,7 +86,7 @@ export async function scanRoutes(fastify: FastifyInstance) {
     try {
       aiResult = await analyzeImageBuffer(
         imageBuffer,
-        imagePart.mimetype as any,
+        imageMimetype as any,
         userNote?.trim() || undefined
       );
     } catch (err: any) {

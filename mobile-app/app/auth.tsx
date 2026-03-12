@@ -123,7 +123,7 @@ export default function AuthScreen() {
                     <Utensils color="#10b981" size={40} />
                 </View>
                 <Text style={styles.title}>Gin dai MAI!</Text>
-                <Text style={styles.subtitle}>{isLogin ? 'Welcome back! Let\'s eat safe.' : 'Join us to eat safely.'}</Text>
+                <Text style={styles.subtitle}>{isLogin ? 'ยินดีต้อนรับกลับมา! ทานอาหารให้ปลอดภัยกันเถอะ' : 'มาร่วมทานอาหารอย่างปลอดภัยกัน'}</Text>
             </View>
 
             {isVerify ? (
@@ -134,7 +134,7 @@ export default function AuthScreen() {
                       style={styles.input}
                       onChangeText={setOtp}
                       value={otp}
-                      placeholder="6-Digit Code"
+                      placeholder="รหัส 6 หลัก"
                       placeholderTextColor="#a0a0a0"
                       keyboardType="number-pad"
                       maxLength={6}
@@ -149,12 +149,12 @@ export default function AuthScreen() {
                       {loading ? (
                            <ActivityIndicator size="small" color="#fff" />
                       ) : (
-                          <Text style={styles.buttonTextLight}>Verify Email</Text>
+                          <Text style={styles.buttonTextLight}>ยืนยันอีเมล</Text>
                       )}
                   </TouchableOpacity>
                   <View style={styles.toggleContainer}>
                       <TouchableOpacity onPress={() => setIsVerify(false)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                           <Text style={styles.toggleTextAction}>Back to Sign In</Text>
+                           <Text style={styles.toggleTextAction}>กลับไปหน้าเข้าสู่ระบบ</Text>
                        </TouchableOpacity>
                   </View>
               </View>
@@ -166,7 +166,7 @@ export default function AuthScreen() {
                       style={styles.input}
                       onChangeText={setEmail}
                       value={email}
-                      placeholder="Email Address"
+                      placeholder="อีเมล"
                       placeholderTextColor="#a0a0a0"
                       autoCapitalize="none"
                       keyboardType="email-address"
@@ -180,7 +180,7 @@ export default function AuthScreen() {
                       onChangeText={setPassword}
                       value={password}
                       secureTextEntry
-                      placeholder="Password"
+                      placeholder="รหัสผ่าน"
                       placeholderTextColor="#a0a0a0"
                       autoCapitalize="none"
                     />
@@ -195,17 +195,17 @@ export default function AuthScreen() {
                       {loading ? (
                            <ActivityIndicator size="small" color="#fff" />
                       ) : (
-                          <Text style={styles.buttonTextLight}>{isLogin ? 'Sign In' : 'Create Account'}</Text>
+                          <Text style={styles.buttonTextLight}>{isLogin ? 'เข้าสู่ระบบ' : 'สร้างบัญชี'}</Text>
                       )}
                   </TouchableOpacity>
 
                   <View style={styles.toggleContainer}>
                       <Text style={styles.toggleTextPreview}>
-                          {isLogin ? "Don't have an account? " : "Already have an account? "}
+                          {isLogin ? "ยังไม่มีบัญชีใช่ไหม? " : "มีบัญชีอยู่แล้วใช่ไหม? "}
                       </Text>
                       <TouchableOpacity onPress={() => setIsLogin(!isLogin)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
                            <Text style={styles.toggleTextAction}>
-                               {isLogin ? "Sign Up" : "Sign In"}
+                               {isLogin ? "สมัครสมาชิก" : "เข้าสู่ระบบ"}
                            </Text>
                        </TouchableOpacity>
                   </View>

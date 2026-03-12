@@ -10,7 +10,9 @@ import { SAFETY_CONFIG } from '../src/types/scan.types';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Share2, Check, AlertTriangle, ShieldCheck, ShieldAlert, ShieldQuestion, Info, ScanSearch, Flag, X } from 'lucide-react-native';
 import Animated, { FadeInUp, FadeInDown, useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
+import ViewShot from 'react-native-view-shot';
+import * as Sharing from 'expo-sharing';
 
 const getHeaderIcon = (level: string) => {
     if (level === 'SAFE') return <ShieldCheck color="#ffffff" size={64} style={styles.headerIconShadow} />;
@@ -30,6 +32,7 @@ const ISSUE_OPTIONS: { type: IssueType; label: string }[] = [
 export default function ResultScreen() {
     const router = useRouter();
     const { lastScanResult, lastScanImageUrl, lastScanId, clearScanResult } = useStore();
+    const viewShotRef = useRef<ViewShot>(null);
 
     const animatedWidth = useSharedValue(0);
 
@@ -56,9 +59,9 @@ export default function ResultScreen() {
         return (
             <View style={styles.errorContainer}>
                 <AlertTriangle color="#ef4444" size={48} style={{ marginBottom: 16 }} />
-                <Text style={styles.errorText}>Analysis result not found</Text>
+                <Text style={styles.errorText}>ไม่พบผลการวิเคราะห์</Text>
                 <TouchableOpacity style={styles.backButton} onPress={() => router.navigate('/')}>
-                    <Text style={styles.backButtonText}>Return Home</Text>
+                    <Text style={styles.backButtonText}>กลับสู่หน้าหลัก</Text>
                 </TouchableOpacity>
             </View>
         );
@@ -74,14 +77,21 @@ export default function ResultScreen() {
 
     const handleShare = async () => {
         try {
-            await Share.share({
-                message: `Food Safety Analysis by Gin dai MAI!\n\n` +
-                    `Ingredient: ${lastScanResult.foodType}\n` +
-                    `Status: ${config.label}\n` +
-                    `Confidence: ${confidencePercent}%\n\n` +
-                    `Details: ${lastScanResult.analysisDetail}`,
-            });
-        } catch { }
+            if (viewShotRef.current && viewShotRef.current.capture) {
+                const uri = await viewShotRef.current.capture();
+                const isAvailable = await Sharing.isAvailableAsync();
+                if (isAvailable) {
+                    await Sharing.shareAsync(uri, {
+                        dialogTitle: 'ผลการวิเคราะห์จาก Gin dai MAI!',
+                        mimeType: 'image/jpeg',
+                    });
+                } else {
+                    Alert.alert('ขออภัย', 'ไม่สามารถแชร์รูปภาพในอุปกรณ์นี้ได้');
+                }
+            }
+        } catch (err) {
+            Alert.alert('เกิดข้อผิดพลาด', 'ไม่สามารถแชร์ผลลัพธ์ได้');
+        }
     };
 
     const handleOpenFeedback = () => {
@@ -114,7 +124,7 @@ export default function ResultScreen() {
 
     return (
         <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-
+            <ViewShot ref={viewShotRef} options={{ format: 'jpg', quality: 0.9 }} style={{ backgroundColor: '#f8fafc' }}>
             {/* Header */}
             <LinearGradient
                 colors={[config.color, config.color + 'cc']}
@@ -136,6 +146,33 @@ export default function ResultScreen() {
                             style={styles.scannedImage}
                             resizeMode="cover"
                         />
+                        {lastScanResult?.boundingBoxes?.map((box, index) => {
+                            // Gemini returns coordinates in [0, 1000] range
+                            const top = `${(box.y_min / 1000) * 100}%` as any;
+                            const left = `${(box.x_min / 1000) * 100}%` as any;
+                            const height = `${((box.y_max - box.y_min) / 1000) * 100}%` as any;
+                            const width = `${((box.x_max - box.x_min) / 1000) * 100}%` as any;
+
+                            return (
+                                <View
+                                    key={index}
+                                    style={[
+                                        styles.boundingBoxOverlay,
+                                        {
+                                            top,
+                                            left,
+                                            width,
+                                            height,
+                                            borderColor: config.color,
+                                        }
+                                    ]}
+                                >
+                                    <View style={[styles.boundingBoxLabelContainer, { backgroundColor: config.color }]}>
+                                        <Text style={styles.boundingBoxOverlayLabel}>{box.label}</Text>
+                                    </View>
+                                </View>
+                            );
+                        })}
                     </View>
                 </View>
             )}
@@ -145,7 +182,7 @@ export default function ResultScreen() {
                 <Animated.View entering={FadeInUp.delay(300).springify()} style={styles.card}>
                     <View style={styles.cardHeader}>
                         <ShieldCheck color="#64748b" size={20} />
-                        <Text style={styles.cardTitle}>AI Confidence</Text>
+                        <Text style={styles.cardTitle}>ความมั่นใจของ AI</Text>
                     </View>
                     <View style={styles.confidenceBarContainer}>
                         <View style={styles.confidenceBar}>
@@ -167,7 +204,7 @@ export default function ResultScreen() {
                 <Animated.View entering={FadeInUp.delay(400).springify()} style={styles.card}>
                     <View style={styles.cardHeader}>
                         <Info color="#64748b" size={20} />
-                        <Text style={styles.cardTitle}>Analysis Details</Text>
+                        <Text style={styles.cardTitle}>รายละเอียดการวิเคราะห์</Text>
                     </View>
                     <Text style={styles.analysisText}>{lastScanResult.analysisDetail}</Text>
                 </Animated.View>
@@ -177,7 +214,7 @@ export default function ResultScreen() {
                     <View style={styles.card}>
                         <View style={styles.cardHeader}>
                             <ScanSearch color="#64748b" size={20} />
-                            <Text style={styles.cardTitle}>Detected Items</Text>
+                            <Text style={styles.cardTitle}>รายการที่ตรวจพบ</Text>
                         </View>
                         {lastScanResult.boundingBoxes.map((box, index) => (
                             <View key={index} style={styles.boundingBoxItem}>
@@ -193,14 +230,17 @@ export default function ResultScreen() {
                     <View style={styles.warningCard}>
                         <View style={styles.cardHeader}>
                             <AlertTriangle color="#b45309" size={20} />
-                            <Text style={styles.warningTitle}>Warning</Text>
+                            <Text style={styles.warningTitle}>คำเตือน</Text>
                         </View>
                         <Text style={styles.warningText}>
-                            Do not consume this ingredient. Please discard or isolate it from other food items immediately.
+                            ห้ามรับประทานส่วนผสมนี้ โปรดทิ้งหรือแยกออกจากอาหารอื่นทันที
                         </Text>
                     </View>
                 )}
+            </View>
+            </ViewShot>
 
+            <View style={styles.contentPadding}>
                 {/* Bottom Actions */}
                 <Animated.View entering={FadeInDown.delay(700).springify()} style={styles.buttonRow}>
                     <TouchableOpacity
@@ -209,7 +249,7 @@ export default function ResultScreen() {
                         activeOpacity={0.7}
                     >
                         <Share2 color="#3b82f6" size={20} />
-                        <Text style={styles.shareButtonText}>Share</Text>
+                        <Text style={styles.shareButtonText}>แชร์</Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity
@@ -227,7 +267,7 @@ export default function ResultScreen() {
                         activeOpacity={0.8}
                     >
                         <Check color="#fff" size={20} />
-                        <Text style={styles.doneButtonText}>Done</Text>
+                        <Text style={styles.doneButtonText}>เสร็จสิ้น</Text>
                     </TouchableOpacity>
                 </Animated.View>
             </View>
@@ -483,6 +523,25 @@ const styles = StyleSheet.create({
         fontFamily: 'Kanit_400Regular',
         fontSize: 16,
         color: '#475569',
+    },
+    boundingBoxOverlay: {
+        position: 'absolute',
+        borderWidth: 2,
+        borderRadius: 4,
+    },
+    boundingBoxLabelContainer: {
+        position: 'absolute',
+        top: -18,
+        left: -2,
+        paddingHorizontal: 6,
+        paddingVertical: 2,
+        borderRadius: 4,
+    },
+    boundingBoxOverlayLabel: {
+        color: '#fff',
+        fontSize: 10,
+        fontWeight: 'bold',
+        fontFamily: 'Kanit_700Bold',
     },
 
     warningCard: {

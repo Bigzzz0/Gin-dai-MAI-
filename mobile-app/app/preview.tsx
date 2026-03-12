@@ -1,25 +1,26 @@
 import {
     View, Text, StyleSheet, Image,
     TouchableOpacity, ActivityIndicator, Alert, SafeAreaView, Platform,
-    Dimensions, Modal, TextInput, KeyboardAvoidingView, ScrollView
+    Dimensions, Modal, TextInput, KeyboardAvoidingView
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useStore } from '../src/store/useStore';
 import { apiService } from '../src/services/api';
 import { useState, useEffect } from 'react';
 import { BlurView } from 'expo-blur';
-import { ScanSearch, Undo2, Ban, PenLine, X, CheckCircle } from 'lucide-react-native';
+import { ScanSearch, Undo2, Ban, PenLine, X, CheckCircle, Crop } from 'lucide-react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withRepeat, withTiming, Easing, withSequence } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
+import * as ImageManipulator from 'expo-image-manipulator';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 const LOADING_MESSAGES = [
-    'Sending image to AI...',
-    'Analyzing ingredients & safety...',
-    'Looking for harmful additives...',
-    'Processing via Gemini Vision...',
-    'Almost there, hanging tight...',
+    'กำลังส่งรูปภาพไปยัง AI...',
+    'กำลังวิเคราะห์ส่วนผสมและความปลอดภัย...',
+    'กำลังค้นหาสารปรุงแต่งที่เป็นอันตราย...',
+    'กำลังประมวลผลด้วย Gemini Vision...',
+    'ใกล้เสร็จแล้ว รอสักครู่...',
 ];
 
 export default function PreviewScreen() {
@@ -87,7 +88,14 @@ export default function PreviewScreen() {
         setIsAnalyzing(true);
 
         try {
-            const response = await apiService.analyzeImage(currentImageUri, userNote || undefined);
+            // Resize before sending to API (max width 1080 to save bandwidth and compute)
+            const resized = await ImageManipulator.manipulateAsync(
+                currentImageUri,
+                [{ resize: { width: Math.min(1080, 1080) } }], 
+                { compress: 0.8, format: ImageManipulator.SaveFormat.JPEG }
+            );
+
+            const response = await apiService.analyzeImage(resized.uri, userNote || undefined);
 
             setScanResult(response.result, response.scanId, response.imageUrl);
 
@@ -137,7 +145,7 @@ export default function PreviewScreen() {
             ) : (
                 <View style={styles.placeholder}>
                     <Ban color="#64748b" size={48} style={{ marginBottom: 16 }} />
-                    <Text style={styles.placeholderText}>No image available to preview</Text>
+                    <Text style={styles.placeholderText}>ไม่มีรูปภาพสำหรับแสดงตัวอย่าง</Text>
                 </View>
             )}
 
@@ -149,7 +157,7 @@ export default function PreviewScreen() {
                         <BlurView intensity={60} tint="dark" style={styles.loadingCard}>
                             <ActivityIndicator size="large" color="#10b981" />
                             <Text style={styles.loadingText}>{loadingMsg}</Text>
-                            <Text style={styles.loadingSubText}>This may take a few seconds...</Text>
+                            <Text style={styles.loadingSubText}>อาจใช้เวลาสักครู่...</Text>
                         </BlurView>
                     ) : (
                         <View style={styles.bottomStack}>
@@ -176,7 +184,16 @@ export default function PreviewScreen() {
                                 >
                                     <BlurView intensity={50} tint="dark" style={styles.blurButton}>
                                         <Undo2 color="#fff" size={24} />
-                                        <Text style={styles.buttonText}>Retake</Text>
+                                    </BlurView>
+                                </TouchableOpacity>
+
+                                <TouchableOpacity
+                                    style={styles.actionButton}
+                                    onPress={() => router.push('/crop')}
+                                    activeOpacity={0.7}
+                                >
+                                    <BlurView intensity={50} tint="dark" style={styles.blurButton}>
+                                        <Crop color="#fff" size={24} />
                                     </BlurView>
                                 </TouchableOpacity>
 
@@ -186,7 +203,7 @@ export default function PreviewScreen() {
                                     activeOpacity={0.8}
                                 >
                                     <ScanSearch color="#fff" size={24} />
-                                    <Text style={styles.primaryButtonText}>Analyze Food</Text>
+                                    <Text style={styles.primaryButtonText}>วิเคราะห์ความปลอดภัยอาหาร</Text>
                                 </TouchableOpacity>
                             </View>
                         </View>

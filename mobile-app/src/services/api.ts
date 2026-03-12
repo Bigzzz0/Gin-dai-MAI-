@@ -108,12 +108,28 @@ export const apiService = {
             formData.append('note', note.trim());
         }
 
-        const response = await apiClient.post<AnalyzeResponse>(
-            '/scans/analyze',
-            formData,
-            { headers: { 'Content-Type': 'multipart/form-data' } }
-        );
-        return response.data;
+        // Native fetch is highly recommended for FormData in React Native
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        const response = await fetch(`${API_BASE_URL}/scans/analyze`, {
+            method: 'POST',
+            body: formData,
+            headers: {
+                ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {})
+            }
+        });
+
+        if (!response.ok) {
+            let errResult;
+            try {
+                errResult = await response.json();
+            } catch {
+                throw new Error('การเชื่อมต่อผิดพลาด กรุณาลองใหม่อีกครั้ง');
+            }
+            throw new Error(errResult?.error || 'เกิดข้อผิดพลาดในการอัปโหลดรูปภาพ');
+        }
+
+        return await response.json();
     },
 
     /**

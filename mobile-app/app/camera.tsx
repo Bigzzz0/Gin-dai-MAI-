@@ -3,7 +3,8 @@ import { CameraView, CameraType, useCameraPermissions } from 'expo-camera';
 import { useState, useRef } from 'react';
 import { useRouter } from 'expo-router';
 import { useStore } from '../src/store/useStore';
-import { Camera as CameraIcon, FlipHorizontal, X, Grid3X3, Zap, ZapOff, Crop } from 'lucide-react-native';
+import { Camera as CameraIcon, FlipHorizontal, X, Grid3X3, Zap, ZapOff, ImagePlus } from 'lucide-react-native';
+import * as ImagePicker from 'expo-image-picker';
 import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
@@ -37,10 +38,10 @@ export default function CameraScreen() {
         return (
             <View style={styles.permissionContainer}>
                 <CameraIcon color="#10b981" size={64} style={{ marginBottom: 20 }} />
-                <Text style={styles.permissionTitle}>Camera Access Required</Text>
-                <Text style={styles.permissionText}>We need your permission to scan food items for safety analysis.</Text>
+                <Text style={styles.permissionTitle}>ต้องการสิทธิ์เข้าถึงกล้อง</Text>
+                <Text style={styles.permissionText}>เราต้องการสิทธิ์ของคุณเพื่อสแกนอาหารสำหรับการวิเคราะห์ความปลอดภัย</Text>
                 <TouchableOpacity style={styles.permissionButton} onPress={requestPermission} activeOpacity={0.8}>
-                    <Text style={styles.permissionButtonText}>Grant Permission</Text>
+                    <Text style={styles.permissionButtonText}>อนุญาตการเข้าถึง</Text>
                 </TouchableOpacity>
             </View>
         );
@@ -50,7 +51,7 @@ export default function CameraScreen() {
         setFacing(current => (current === 'back' ? 'front' : 'back'));
     }
 
-    const takePicture = async (goToCrop = false) => {
+    const takePicture = async () => {
         if (cameraRef.current) {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
             captureScale.value = withSpring(0.9, { damping: 10, stiffness: 400 });
@@ -64,14 +65,30 @@ export default function CameraScreen() {
                 if (photo) {
                     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
                     setCurrentImageUri(photo.uri);
-                    // Crop is optional: crop icon → /crop, shutter → /preview directly
-                    router.push(goToCrop ? '/crop' : '/preview');
+                    router.push('/preview');
                 }
             } catch (error) {
                 console.error('Failed to take picture:', error);
                 Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
                 captureScale.value = withSpring(1);
             }
+        }
+    };
+
+    const pickImage = async () => {
+        try {
+            const result = await ImagePicker.launchImageLibraryAsync({
+                mediaTypes: ['images'],
+                allowsEditing: false,
+                quality: 0.8,
+            });
+
+            if (!result.canceled && result.assets && result.assets.length > 0) {
+                setCurrentImageUri(result.assets[0].uri);
+                router.push('/preview');
+            }
+        } catch (error) {
+            console.error('Failed to pick image:', error);
         }
     };
 
@@ -154,23 +171,23 @@ export default function CameraScreen() {
                         <View style={styles.bottomBar}>
                             <View style={styles.controlsRow}>
 
-                                {/* Crop button (optional) */}
+                                {/* Gallery Button */}
                                 <View style={styles.iconWithLabel}>
                                     <TouchableOpacity
                                         style={styles.iconButton}
-                                        onPress={() => takePicture(true)}
+                                        onPress={pickImage}
                                         activeOpacity={0.7}
                                     >
                                         <BlurView intensity={30} tint="dark" style={styles.blurContainer}>
-                                            <Crop color="#fff" size={22} />
+                                            <ImagePlus color="#fff" size={22} />
                                         </BlurView>
                                     </TouchableOpacity>
-                                    <Text style={styles.iconLabel}>Crop</Text>
+                                    <Text style={styles.iconLabel}>แกลเลอรี</Text>
                                 </View>
 
                                 {/* Capture Button → direct to preview */}
                                 <TouchableOpacity
-                                    onPress={() => takePicture(false)}
+                                    onPress={takePicture}
                                     activeOpacity={0.9}
                                 >
                                     <Animated.View style={[styles.captureButtonOuter, animatedCaptureStyle]}>
@@ -189,7 +206,7 @@ export default function CameraScreen() {
                                             <FlipHorizontal color="#fff" size={24} />
                                         </BlurView>
                                     </TouchableOpacity>
-                                    <Text style={styles.iconLabel}>Flip</Text>
+                                    <Text style={styles.iconLabel}>สลับกล้อง</Text>
                                 </View>
 
                             </View>

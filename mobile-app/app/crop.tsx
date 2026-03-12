@@ -46,7 +46,7 @@ export default function CropScreen() {
                 );
                 setNormalizedUri(result.uri);
                 setImageNatural({ w: result.width, h: result.height });
-            } catch (e) {
+            } catch { // 'e' removed as it was unused
                 // fallback: use original
                 setNormalizedUri(currentImageUri);
             } finally {
@@ -177,13 +177,13 @@ export default function CropScreen() {
             );
 
             setCurrentImageUri(result.uri);
-            router.push('/preview');
+            router.back();
         } catch (err) {
             console.error('Crop failed:', err);
         } finally {
             setIsCropping(false);
         }
-    }, [normalizedUri, imageNatural, containerSize, boxX, boxY, boxW, boxH]);
+    }, [normalizedUri, imageNatural, containerSize, boxX, boxY, boxW, boxH, router, setCurrentImageUri]);
 
     // ── Render ────────────────────────────────────────────────────────────────
     if (preparing) {
@@ -267,10 +267,10 @@ export default function CropScreen() {
                                     <Text style={styles.btnTxt}>Retake</Text>
                                 </BlurView>
                             </TouchableOpacity>
-                            <TouchableOpacity style={styles.skipBtn} onPress={() => router.push('/preview')} activeOpacity={0.7}>
+                            <TouchableOpacity style={styles.skipBtn} onPress={() => router.back()} activeOpacity={0.7}>
                                 <BlurView intensity={50} tint="dark" style={styles.blurBtn}>
                                     <SkipForward color="#fff" size={20} />
-                                    <Text style={styles.btnTxt}>Skip</Text>
+                                    <Text style={styles.btnTxt}>Cancel</Text>
                                 </BlurView>
                             </TouchableOpacity>
                             <TouchableOpacity style={styles.cropBtn} onPress={applyCrop} activeOpacity={0.8}>
