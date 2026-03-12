@@ -12,6 +12,7 @@ export interface AIScanResult {
   safetyLevel: "SAFE" | "SUSPICIOUS" | "DANGEROUS";
   confidence: number;
   analysisDetail: string;
+  recommendation: string;
   boundingBoxes: Array<{
     label: string;
     x_min: number;
@@ -31,6 +32,8 @@ CRITICAL INSTRUCTIONS:
 1. All analysis and output must be translated and returned in THAI language (except JSON keys and ENUMs).
 2. ONLY output a 100% valid JSON payload. Do NOT include markdown code blocks (e.g., \`\`\`json) or any conversational text.
 3. Be highly accurate and conservative: if uncertain, lean toward SUSPICIOUS rather than SAFE.
+4. Provide actionable "Smart Recommendations" in the \`recommendation\` field based on the safety level (e.g., what parts to cut out, cooking temperature, or just throwing it away).
+5. For \`boundingBoxes\`, you MUST provide coordinates in the range [0, 1000], where [0, 0] is top-left and [1000, 1000] is bottom-right. If no specific objects form the bounding box, return an empty array.
 
 JSON Output Schema:
 {
@@ -39,6 +42,7 @@ JSON Output Schema:
   "safetyLevel": "SAFE" | "SUSPICIOUS" | "DANGEROUS",
   "confidence": number,
   "analysisDetail": string,
+  "recommendation": string,
   "boundingBoxes": [
     {
       "label": string,

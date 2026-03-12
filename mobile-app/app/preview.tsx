@@ -1,8 +1,9 @@
 import {
     View, Text, StyleSheet, Image,
-    TouchableOpacity, ActivityIndicator, Alert, SafeAreaView, Platform,
+    TouchableOpacity, ActivityIndicator, Alert, Platform,
     Dimensions, Modal, TextInput, KeyboardAvoidingView
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useStore } from '../src/store/useStore';
 import { apiService } from '../src/services/api';
@@ -25,6 +26,7 @@ const LOADING_MESSAGES = [
 
 export default function PreviewScreen() {
     const router = useRouter();
+    const insets = useSafeAreaInsets();
     const { currentImageUri, setScanResult, addScanToHistory } = useStore();
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [loadingMsg, setLoadingMsg] = useState(LOADING_MESSAGES[0]);
@@ -91,7 +93,7 @@ export default function PreviewScreen() {
             // Resize before sending to API (max width 1080 to save bandwidth and compute)
             const resized = await ImageManipulator.manipulateAsync(
                 currentImageUri,
-                [{ resize: { width: Math.min(1080, 1080) } }], 
+                [{ resize: { width: Math.min(1080, 1080) } }],
                 { compress: 0.8, format: ImageManipulator.SaveFormat.JPEG }
             );
 
@@ -149,10 +151,11 @@ export default function PreviewScreen() {
                 </View>
             )}
 
-            <SafeAreaView style={styles.overlay}>
-                <View style={{ flex: 1 }} />
+            {/* Overlay fills the whole screen, content pinned to bottom */}
+            <View style={StyleSheet.absoluteFillObject} pointerEvents="box-none">
+                <View style={{ flex: 1 }} pointerEvents="none" />
 
-                <View style={styles.bottomControls}>
+                <View style={[styles.bottomControls, { paddingBottom: Math.max(insets.bottom, 16) + 8 }]}>
                     {isAnalyzing ? (
                         <BlurView intensity={60} tint="dark" style={styles.loadingCard}>
                             <ActivityIndicator size="large" color="#10b981" />
@@ -203,13 +206,13 @@ export default function PreviewScreen() {
                                     activeOpacity={0.8}
                                 >
                                     <ScanSearch color="#fff" size={24} />
-                                    <Text style={styles.primaryButtonText}>วิเคราะห์ความปลอดภัยอาหาร</Text>
+                                    <Text style={styles.primaryButtonText}>วิเคราะห์</Text>
                                 </TouchableOpacity>
                             </View>
                         </View>
                     )}
                 </View>
-            </SafeAreaView>
+            </View>
 
             {/* Note Modal */}
             <Modal
@@ -319,13 +322,9 @@ const styles = StyleSheet.create({
         fontSize: 16,
         fontWeight: '500',
     },
-    overlay: {
-        flex: 1,
-        justifyContent: 'flex-end',
-    },
     bottomControls: {
-        padding: 24,
-        paddingBottom: Platform.OS === 'ios' ? 24 : 40,
+        padding: 20,
+        paddingTop: 16,
     },
     bottomStack: {
         gap: 12,

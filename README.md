@@ -205,6 +205,135 @@
 
 ---
 
+## 🐳 รันทุกอย่างด้วย Docker (Full Stack Docker)
+
+รันทั้ง **Backend API** และ **Expo Dev Server** (Mobile) ด้วยคำสั่งเดียว ไม่ต้องติดตั้ง Node.js บนเครื่อง
+
+### 🔧 สิ่งที่ต้องเตรียม
+
+* **Docker Desktop** — [ดาวน์โหลด](https://www.docker.com/products/docker-desktop/)
+* **Expo Go** ในมือถือ — [iOS](https://apps.apple.com/us/app/expo-go/id982107779) / [Android](https://play.google.com/store/apps/details?id=host.exp.exponent)
+* มือถือและเครื่องคอมต้องอยู่ **Wi-Fi วงเดียวกัน**
+
+```bash
+# ตรวจสอบว่า Docker พร้อมใช้:
+docker --version
+docker compose version
+```
+
+---
+
+### 📋 ขั้นตอนการรัน
+
+#### ขั้นที่ 1 — ดู IP ของเครื่องคอม
+
+```bash
+# Windows
+ipconfig
+# ดูที่ "IPv4 Address" ใต้ Wireless LAN adapter Wi-Fi
+# ตัวอย่าง: 192.168.1.42
+```
+
+---
+
+#### ขั้นที่ 2 — ตั้งค่าไฟล์ Environment
+
+**2a. root `.env`** (สำหรับ docker-compose):
+
+เปิดไฟล์ `.env` ที่ root โปรเจกต์ แล้วใส่ IP จากขั้นที่ 1:
+
+```env
+HOST_IP=192.168.1.42
+```
+
+**2b. `backend-api/.env`** (สำหรับ Backend):
+
+```bash
+cd backend-api
+copy .env.example .env   # Windows
+# cp .env.example .env   # macOS/Linux
+```
+
+เปิดกรอกค่าจริง:
+
+```env
+GEMINI_API_KEY=your_gemini_api_key
+DATABASE_URL="postgresql://postgres.<ref>:<password>@...supabase.com:6543/postgres?pgbouncer=true"
+DIRECT_URL="postgresql://postgres.<ref>:<password>@...supabase.com:5432/postgres"
+SUPABASE_URL=https://<ref>.supabase.co
+SUPABASE_ANON_KEY=your_anon_key
+SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+PORT=3000
+NODE_ENV=production
+```
+
+> ⚠️ ห้าม Commit ไฟล์ `.env` ขึ้น Git — มี Secret Key บรรจุอยู่
+
+---
+
+#### ขั้นที่ 3 — Build และ Start ทุกอย่างพร้อมกัน
+
+```bash
+# อยู่ที่ root folder (Gin dai mai)
+docker compose up --build
+```
+
+Docker จะทำงานดังนี้อัตโนมัติ:
+
+| Service | สิ่งที่เกิดขึ้น |
+| :--- | :--- |
+| **api** | คอมไพล์ TypeScript → Deploy DB Migration → เริ่ม Fastify Server |
+| **mobile** | ติดตั้ง npm dependencies → เริ่ม Expo Metro Bundler |
+
+รอจนเห็น QR Code โผล่ขึ้นใน Terminal:
+
+```
+› Metro waiting on exp://192.168.1.42:8081
+› Scan the QR code above with Expo Go (Android) or the Camera app (iOS)
+```
+
+---
+
+#### ขั้นที่ 4 — สแกน QR Code ด้วยมือถือ
+
+* **iPhone:** เปิดแอปกล้องปกติ → ชี้ที่ QR Code → กด Banner ที่โผล่ขึ้น
+* **Android:** เปิดแอป **Expo Go** → กด "Scan QR code" → ชี้ที่ QR Code
+
+แอปจะโหลดขึ้นในมือถือโดยอัตโนมัติ 🎉
+
+---
+
+### 🕹 คำสั่ง Docker ที่ใช้บ่อย
+
+| คำสั่ง | ความหมาย |
+| :--- | :--- |
+| `docker compose up --build` | Build ใหม่และเริ่มต้นทุก Service (แสดง Log) |
+| `docker compose up -d --build` | เหมือนบนแต่รันใน Background |
+| `docker compose down` | หยุดและลบ Container ทั้งหมด |
+| `docker compose logs -f` | ดู Log แบบ Real-time |
+| `docker compose logs -f mobile` | ดู Log เฉพาะ Expo (ดู QR Code) |
+| `docker compose restart api` | รีสตาร์ทเฉพาะ Backend |
+| `docker compose ps` | ดูสถานะ Service ทั้งหมด |
+
+---
+
+### 📁 โครงสร้างไฟล์ Docker
+
+```tree
+📦 Gin dai mai
+ ┣ 📜 docker-compose.yml          # Orchestration รัน api + mobile ด้วยกัน
+ ┣ 📜 .env                        # HOST_IP สำหรับ docker-compose
+ ┃
+ ┣ 📂 backend-api
+ ┃  ┣ 📜 Dockerfile               # Build Backend (multi-stage)
+ ┃  ┗ 📜 .env.example             # Template สำหรับ backend .env
+ ┃
+ ┗ 📂 mobile-app
+    ┗ 📜 Dockerfile.dev           # รัน Expo Dev Server
+```
+
+---
+
 ## 🚨 แนวทางการแก้ปัญหาที่พบบ่อย (Troubleshooting & FAQs)
 
 เผื่อไว้ในกรณีที่เกิดบั๊กตอน Setup นอกกรอบ นี่เป็นวิธีแก้ไขมาตรฐาน:

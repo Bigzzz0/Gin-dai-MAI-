@@ -170,12 +170,12 @@ export default function HistoryScreen() {
                                     activeOpacity={0.7}
                                     onPress={() => {
                                         setScanResult({
-                                            isFood: true,
+                                            isFood: item.isFood,
                                             safetyLevel: item.safetyLevel,
                                             foodType: item.foodType,
                                             confidence: item.confidence,
                                             analysisDetail: item.analysisDetail,
-                                            boundingBoxes: []
+                                            boundingBoxes: item.boundingBoxes ?? [],
                                         }, item.id, item.imageUrl);
                                         router.push('/result');
                                     }}
