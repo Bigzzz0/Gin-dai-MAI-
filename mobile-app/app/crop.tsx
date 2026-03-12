@@ -18,7 +18,7 @@ import {
 import Animated, { useSharedValue, useAnimatedStyle } from 'react-native-reanimated';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Check, RotateCcw } from 'lucide-react-native';
+import { Check, RotateCcw, SkipForward } from 'lucide-react-native';
 import { BlurView } from 'expo-blur';
 
 const MIN_CROP = 80;
@@ -267,9 +267,15 @@ export default function CropScreen() {
                                     <Text style={styles.btnTxt}>Retake</Text>
                                 </BlurView>
                             </TouchableOpacity>
+                            <TouchableOpacity style={styles.skipBtn} onPress={() => router.push('/preview')} activeOpacity={0.7}>
+                                <BlurView intensity={50} tint="dark" style={styles.blurBtn}>
+                                    <SkipForward color="#fff" size={20} />
+                                    <Text style={styles.btnTxt}>Skip</Text>
+                                </BlurView>
+                            </TouchableOpacity>
                             <TouchableOpacity style={styles.cropBtn} onPress={applyCrop} activeOpacity={0.8}>
                                 <Check color="#fff" size={22} />
-                                <Text style={styles.cropBtnTxt}>Crop & Continue</Text>
+                                <Text style={styles.cropBtnTxt}>Crop</Text>
                             </TouchableOpacity>
                         </View>
                     )}
@@ -317,6 +323,7 @@ const styles = StyleSheet.create({
     bottomBar: { position: 'absolute', bottom: 0, left: 0, right: 0, paddingHorizontal: 24 },
     buttons: { flexDirection: 'row', gap: 16 },
     retakeBtn: { flex: 1, borderRadius: 20, overflow: 'hidden' },
+    skipBtn: { flex: 1, borderRadius: 20, overflow: 'hidden' },
     blurBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 18, gap: 8, backgroundColor: 'rgba(0,0,0,0.3)' },
     btnTxt: { fontSize: 16, fontWeight: '700', color: '#fff' },
     cropBtn: {

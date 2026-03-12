@@ -1,14 +1,16 @@
 import {
     View, Text, StyleSheet, Image,
-    TouchableOpacity, ScrollView, Share, Platform
+    TouchableOpacity, ScrollView, Share, Platform,
+    Modal, TextInput, Alert
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useStore } from '../src/store/useStore';
+import { apiService } from '../src/services/api';
 import { SAFETY_CONFIG } from '../src/types/scan.types';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Share2, Check, AlertTriangle, ShieldCheck, ShieldAlert, ShieldQuestion, Info, ScanSearch } from 'lucide-react-native';
+import { Share2, Check, AlertTriangle, ShieldCheck, ShieldAlert, ShieldQuestion, Info, ScanSearch, Flag, X } from 'lucide-react-native';
 import Animated, { FadeInUp, FadeInDown, useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 
 const getHeaderIcon = (level: string) => {
     if (level === 'SAFE') return <ShieldCheck color="#ffffff" size={64} style={styles.headerIconShadow} />;
@@ -16,11 +18,27 @@ const getHeaderIcon = (level: string) => {
     return <ShieldAlert color="#ffffff" size={64} style={styles.headerIconShadow} />;
 };
 
+type IssueType = 'WRONG_FOOD_TYPE' | 'WRONG_SAFETY_LEVEL' | 'NOT_FOOD' | 'OTHER';
+
+const ISSUE_OPTIONS: { type: IssueType; label: string }[] = [
+    { type: 'WRONG_FOOD_TYPE', label: 'ชนิดอาหารผิด' },
+    { type: 'WRONG_SAFETY_LEVEL', label: 'ระดับความปลอดภัยผิด' },
+    { type: 'NOT_FOOD', label: 'ไม่ใช่อาหาร' },
+    { type: 'OTHER', label: 'อื่นๆ' },
+];
+
 export default function ResultScreen() {
     const router = useRouter();
-    const { lastScanResult, lastScanImageUrl, clearScanResult } = useStore();
+    const { lastScanResult, lastScanImageUrl, lastScanId, clearScanResult } = useStore();
 
     const animatedWidth = useSharedValue(0);
+
+    // Feedback modal state
+    const [feedbackVisible, setFeedbackVisible] = useState(false);
+    const [selectedIssue, setSelectedIssue] = useState<IssueType | null>(null);
+    const [feedbackComment, setFeedbackComment] = useState('');
+    const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
+    const [feedbackDone, setFeedbackDone] = useState(false);
 
     useEffect(() => {
         if (lastScanResult) {
@@ -63,7 +81,35 @@ export default function ResultScreen() {
                     `Confidence: ${confidencePercent}%\n\n` +
                     `Details: ${lastScanResult.analysisDetail}`,
             });
-        } catch {}
+        } catch { }
+    };
+
+    const handleOpenFeedback = () => {
+        setSelectedIssue(null);
+        setFeedbackComment('');
+        setFeedbackDone(false);
+        setFeedbackVisible(true);
+    };
+
+    const handleSubmitFeedback = async () => {
+        if (!selectedIssue) {
+            Alert.alert('กรุณาเลือก', 'กรุณาเลือกประเภทความผิดพลาดก่อนส่ง');
+            return;
+        }
+        if (!lastScanId) {
+            Alert.alert('เกิดข้อผิดพลาด', 'ไม่พบข้อมูลการสแกน');
+            return;
+        }
+
+        setIsSubmittingFeedback(true);
+        try {
+            await apiService.submitFeedback(lastScanId, selectedIssue, feedbackComment || undefined);
+            setFeedbackDone(true);
+        } catch (err: any) {
+            Alert.alert('เกิดข้อผิดพลาด', err.message ?? 'ไม่สามารถส่ง feedback ได้ กรุณาลองใหม่');
+        } finally {
+            setIsSubmittingFeedback(false);
+        }
     };
 
     return (
@@ -71,7 +117,7 @@ export default function ResultScreen() {
 
             {/* Header */}
             <LinearGradient
-                colors={[config.color, config.color + 'cc']} // slight opacity for gradient end
+                colors={[config.color, config.color + 'cc']}
                 style={styles.header}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
@@ -157,8 +203,8 @@ export default function ResultScreen() {
 
                 {/* Bottom Actions */}
                 <Animated.View entering={FadeInDown.delay(700).springify()} style={styles.buttonRow}>
-                    <TouchableOpacity 
-                        style={styles.shareButton} 
+                    <TouchableOpacity
+                        style={styles.shareButton}
                         onPress={handleShare}
                         activeOpacity={0.7}
                     >
@@ -166,8 +212,17 @@ export default function ResultScreen() {
                         <Text style={styles.shareButtonText}>Share</Text>
                     </TouchableOpacity>
 
-                    <TouchableOpacity 
-                        style={styles.doneButton} 
+                    <TouchableOpacity
+                        style={styles.reportButton}
+                        onPress={handleOpenFeedback}
+                        activeOpacity={0.7}
+                    >
+                        <Flag color="#ef4444" size={18} />
+                        <Text style={styles.reportButtonText}>รายงาน</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                        style={styles.doneButton}
                         onPress={handleDone}
                         activeOpacity={0.8}
                     >
@@ -178,6 +233,101 @@ export default function ResultScreen() {
             </View>
 
             <View style={{ height: 40 }} />
+
+            {/* Feedback Modal */}
+            <Modal
+                visible={feedbackVisible}
+                transparent
+                animationType="slide"
+                onRequestClose={() => setFeedbackVisible(false)}
+            >
+                <View style={styles.feedbackOverlay}>
+                    <View style={styles.feedbackContainer}>
+                        <View style={styles.modalHandle} />
+
+                        {feedbackDone ? (
+                            /* Success state */
+                            <View style={styles.feedbackSuccess}>
+                                <Check color="#10b981" size={48} />
+                                <Text style={styles.feedbackSuccessTitle}>ขอบคุณสำหรับ Feedback!</Text>
+                                <Text style={styles.feedbackSuccessSubtitle}>
+                                    รายงานของคุณจะถูกนำไปปรับปรุง AI ในอนาคต
+                                </Text>
+                                <TouchableOpacity
+                                    style={styles.closeFeedbackButton}
+                                    onPress={() => setFeedbackVisible(false)}
+                                >
+                                    <Text style={styles.closeFeedbackButtonText}>ปิด</Text>
+                                </TouchableOpacity>
+                            </View>
+                        ) : (
+                            <>
+                                {/* Header */}
+                                <View style={styles.feedbackHeader}>
+                                    <Flag color="#ef4444" size={20} />
+                                    <Text style={styles.feedbackTitle}>ผลลัพธ์ไม่ถูกต้อง?</Text>
+                                    <TouchableOpacity onPress={() => setFeedbackVisible(false)}>
+                                        <X color="#94a3b8" size={22} />
+                                    </TouchableOpacity>
+                                </View>
+
+                                <Text style={styles.feedbackSubtitle}>
+                                    เลือกประเภทความผิดพลาดที่พบ เพื่อช่วยปรับปรุง AI
+                                </Text>
+
+                                {/* Issue Type Selection */}
+                                <View style={styles.issueGrid}>
+                                    {ISSUE_OPTIONS.map((opt) => (
+                                        <TouchableOpacity
+                                            key={opt.type}
+                                            style={[
+                                                styles.issuePill,
+                                                selectedIssue === opt.type && styles.issuePillSelected,
+                                            ]}
+                                            onPress={() => setSelectedIssue(opt.type)}
+                                            activeOpacity={0.7}
+                                        >
+                                            <Text style={[
+                                                styles.issuePillText,
+                                                selectedIssue === opt.type && styles.issuePillTextSelected,
+                                            ]}>
+                                                {opt.label}
+                                            </Text>
+                                        </TouchableOpacity>
+                                    ))}
+                                </View>
+
+                                {/* Optional comment */}
+                                <TextInput
+                                    style={styles.feedbackInput}
+                                    placeholder="รายละเอียดเพิ่มเติม (ไม่บังคับ)"
+                                    placeholderTextColor="#94a3b8"
+                                    value={feedbackComment}
+                                    onChangeText={setFeedbackComment}
+                                    multiline
+                                    maxLength={200}
+                                    textAlignVertical="top"
+                                />
+
+                                <TouchableOpacity
+                                    style={[
+                                        styles.submitFeedbackButton,
+                                        (!selectedIssue || isSubmittingFeedback) && styles.submitFeedbackButtonDisabled,
+                                    ]}
+                                    onPress={handleSubmitFeedback}
+                                    disabled={!selectedIssue || isSubmittingFeedback}
+                                    activeOpacity={0.8}
+                                >
+                                    <Flag color="#fff" size={18} />
+                                    <Text style={styles.submitFeedbackButtonText}>
+                                        {isSubmittingFeedback ? 'กำลังส่ง...' : 'ส่งรายงาน'}
+                                    </Text>
+                                </TouchableOpacity>
+                            </>
+                        )}
+                    </View>
+                </View>
+            </Modal>
         </ScrollView>
     );
 }
@@ -194,8 +344,8 @@ const styles = StyleSheet.create({
         padding: 24,
         backgroundColor: '#f8fafc',
     },
-    errorText: { 
-        fontSize: 18, 
+    errorText: {
+        fontSize: 18,
         color: '#64748b',
         fontWeight: '500',
         marginBottom: 24,
@@ -206,10 +356,10 @@ const styles = StyleSheet.create({
         paddingVertical: 16,
         borderRadius: 16,
     },
-    backButtonText: { 
-        color: '#fff', 
-        fontWeight: '700', 
-        fontSize: 16 
+    backButtonText: {
+        color: '#fff',
+        fontWeight: '700',
+        fontSize: 16
     },
 
     header: {
@@ -221,7 +371,7 @@ const styles = StyleSheet.create({
         borderBottomRightRadius: 30,
         gap: 12,
     },
-    headerIconShadow: { 
+    headerIconShadow: {
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.15,
@@ -359,7 +509,7 @@ const styles = StyleSheet.create({
     buttonRow: {
         flexDirection: 'row',
         marginTop: 8,
-        gap: 16,
+        gap: 10,
     },
     shareButton: {
         flex: 1,
@@ -369,14 +519,31 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
         flexDirection: 'row',
-        gap: 8,
+        gap: 6,
         borderWidth: 1,
         borderColor: '#bfdbfe',
     },
     shareButtonText: {
-        fontSize: 16,
+        fontSize: 14,
         fontWeight: '700',
         color: '#3b82f6',
+    },
+    reportButton: {
+        flex: 1,
+        backgroundColor: '#fff1f2',
+        paddingVertical: 16,
+        borderRadius: 16,
+        alignItems: 'center',
+        justifyContent: 'center',
+        flexDirection: 'row',
+        gap: 6,
+        borderWidth: 1,
+        borderColor: '#fecdd3',
+    },
+    reportButtonText: {
+        fontSize: 14,
+        fontWeight: '700',
+        color: '#ef4444',
     },
     doneButton: {
         flex: 2,
@@ -386,7 +553,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
         flexDirection: 'row',
-        gap: 8,
+        gap: 6,
         shadowColor: '#10b981',
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.3,
@@ -394,6 +561,135 @@ const styles = StyleSheet.create({
         elevation: 5,
     },
     doneButtonText: {
+        fontSize: 14,
+        fontWeight: '700',
+        color: '#fff',
+    },
+
+    // Feedback Modal
+    feedbackOverlay: {
+        flex: 1,
+        justifyContent: 'flex-end',
+        backgroundColor: 'rgba(0,0,0,0.45)',
+    },
+    feedbackContainer: {
+        backgroundColor: '#fff',
+        borderTopLeftRadius: 28,
+        borderTopRightRadius: 28,
+        padding: 24,
+        paddingBottom: Platform.OS === 'ios' ? 40 : 28,
+        gap: 14,
+    },
+    modalHandle: {
+        width: 40,
+        height: 4,
+        backgroundColor: '#e2e8f0',
+        borderRadius: 2,
+        alignSelf: 'center',
+        marginBottom: 4,
+    },
+    feedbackHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 10,
+    },
+    feedbackTitle: {
+        flex: 1,
+        fontSize: 18,
+        fontWeight: '700',
+        color: '#0f172a',
+    },
+    feedbackSubtitle: {
+        fontSize: 13,
+        color: '#64748b',
+        lineHeight: 20,
+    },
+    issueGrid: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 10,
+    },
+    issuePill: {
+        paddingHorizontal: 16,
+        paddingVertical: 10,
+        borderRadius: 20,
+        borderWidth: 1.5,
+        borderColor: '#e2e8f0',
+        backgroundColor: '#f8fafc',
+    },
+    issuePillSelected: {
+        backgroundColor: '#fff1f2',
+        borderColor: '#ef4444',
+    },
+    issuePillText: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: '#64748b',
+    },
+    issuePillTextSelected: {
+        color: '#ef4444',
+    },
+    feedbackInput: {
+        backgroundColor: '#f8fafc',
+        borderRadius: 16,
+        borderWidth: 1.5,
+        borderColor: '#e2e8f0',
+        padding: 14,
+        fontSize: 14,
+        color: '#0f172a',
+        minHeight: 80,
+        lineHeight: 20,
+    },
+    submitFeedbackButton: {
+        backgroundColor: '#ef4444',
+        borderRadius: 16,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: 16,
+        gap: 8,
+        shadowColor: '#ef4444',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.25,
+        shadowRadius: 8,
+        elevation: 4,
+    },
+    submitFeedbackButtonDisabled: {
+        backgroundColor: '#fca5a5',
+        shadowOpacity: 0,
+        elevation: 0,
+    },
+    submitFeedbackButtonText: {
+        fontSize: 16,
+        fontWeight: '700',
+        color: '#fff',
+    },
+
+    // Success state
+    feedbackSuccess: {
+        alignItems: 'center',
+        paddingVertical: 24,
+        gap: 12,
+    },
+    feedbackSuccessTitle: {
+        fontSize: 20,
+        fontWeight: '700',
+        color: '#0f172a',
+    },
+    feedbackSuccessSubtitle: {
+        fontSize: 14,
+        color: '#64748b',
+        textAlign: 'center',
+        lineHeight: 22,
+    },
+    closeFeedbackButton: {
+        marginTop: 8,
+        backgroundColor: '#10b981',
+        paddingHorizontal: 40,
+        paddingVertical: 14,
+        borderRadius: 14,
+    },
+    closeFeedbackButtonText: {
         fontSize: 16,
         fontWeight: '700',
         color: '#fff',

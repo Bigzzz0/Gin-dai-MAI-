@@ -91,7 +91,7 @@ export const apiService = {
     /**
      * ส่งรูปภาพไปให้ Backend วิเคราะห์ด้วย Gemini AI
      */
-    analyzeImage: async (imageUri: string): Promise<AnalyzeResponse> => {
+    analyzeImage: async (imageUri: string, note?: string): Promise<AnalyzeResponse> => {
         const formData = new FormData();
         const filename = imageUri.split('/').pop() ?? 'photo.jpg';
         const ext = filename.split('.').pop()?.toLowerCase() ?? 'jpg';
@@ -102,6 +102,11 @@ export const apiService = {
             name: filename,
             type: mimeType,
         } as any);
+
+        // Append optional user note as a separate form field
+        if (note?.trim()) {
+            formData.append('note', note.trim());
+        }
 
         const response = await apiClient.post<AnalyzeResponse>(
             '/scans/analyze',
@@ -134,6 +139,21 @@ export const apiService = {
      */
     deleteScan: async (scanId: string) => {
         const response = await apiClient.delete(`/history/${scanId}`);
+        return response.data;
+    },
+
+    /**
+     * ส่ง Feedback กรณี AI วิเคราะห์ผิดพลาด
+     */
+    submitFeedback: async (
+        scanId: string,
+        issueType: 'WRONG_FOOD_TYPE' | 'WRONG_SAFETY_LEVEL' | 'NOT_FOOD' | 'OTHER',
+        comment?: string
+    ) => {
+        const response = await apiClient.post(`/scans/${scanId}/feedback`, {
+            issueType,
+            comment: comment?.trim() || undefined,
+        });
         return response.data;
     },
 };

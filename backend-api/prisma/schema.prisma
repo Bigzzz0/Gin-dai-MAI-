@@ -12,25 +12,42 @@ datasource db {
 }
 
 model User {
-  id             String        @id @default(uuid())
-  supabaseAuthId String        @unique // Links to Supabase auth.users
-  email          String        @unique
+  id             String         @id @default(uuid())
+  supabaseAuthId String         @unique // Links to Supabase auth.users
+  email          String         @unique
   name           String?
   scans          ScanHistory[]
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
+  feedbacks      ScanFeedback[]
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
 }
 
 model ScanHistory {
-  id             String   @id @default(uuid())
+  id             String         @id @default(uuid())
   userId         String
-  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  imageUrl       String   // Supabase Storage URL
-  foodType       String   // e.g., เนื้อหมู, ปลาหมึก
-  safetyLevel    String   // SAFE, SUSPICIOUS, DANGEROUS
-  aiConfidence   Float    // 0.0 - 1.0
-  aiResponseJson Json     // Full AI JSON response with boundingBoxes, analysisDetail
-  createdAt      DateTime @default(now())
+  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  imageUrl       String         // Supabase Storage URL
+  foodType       String         // e.g., เนื้อหมู, ปลาหมึก
+  safetyLevel    String         // SAFE, SUSPICIOUS, DANGEROUS
+  aiConfidence   Float          // 0.0 - 1.0
+  aiResponseJson Json           // Full AI JSON response with boundingBoxes, analysisDetail
+  userNote       String?        // Optional note from user before analysis
+  feedbacks      ScanFeedback[]
+  createdAt      DateTime       @default(now())
 
   @@index([userId, createdAt(sort: Desc)])
+}
+
+model ScanFeedback {
+  id        String      @id @default(uuid())
+  scanId    String
+  scan      ScanHistory @relation(fields: [scanId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  issueType String      // WRONG_FOOD_TYPE | WRONG_SAFETY_LEVEL | NOT_FOOD | OTHER
+  comment   String?     // Optional additional comment (max 500 chars)
+  createdAt DateTime    @default(now())
+
+  @@index([scanId])
+  @@index([userId])
 }
