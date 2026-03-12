@@ -1,14 +1,14 @@
 import {
     View, Text, StyleSheet, Image,
     TouchableOpacity, ScrollView, Share, Platform,
-    Modal, TextInput, Alert
+    Modal, TextInput, Alert, StatusBar
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useStore } from '../src/store/useStore';
 import { apiService } from '../src/services/api';
 import { SAFETY_CONFIG } from '../src/types/scan.types';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Share2, Check, AlertTriangle, ShieldCheck, ShieldAlert, ShieldQuestion, Info, ScanSearch, Flag, X } from 'lucide-react-native';
+import { Share2, Check, AlertTriangle, ShieldCheck, ShieldAlert, ShieldQuestion, Info, ScanSearch, Flag, X, Lightbulb } from 'lucide-react-native';
 import Animated, { FadeInUp, FadeInDown, useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
 import { useEffect, useState, useRef } from 'react';
 import ViewShot from 'react-native-view-shot';
@@ -17,7 +17,20 @@ import * as Sharing from 'expo-sharing';
 const getHeaderIcon = (level: string) => {
     if (level === 'SAFE') return <ShieldCheck color="#ffffff" size={64} style={styles.headerIconShadow} />;
     if (level === 'SUSPICIOUS') return <ShieldQuestion color="#ffffff" size={64} style={styles.headerIconShadow} />;
-    return <ShieldAlert color="#ffffff" size={64} style={styles.headerIconShadow} />;
+    return <ShieldQuestion color="#ffffff" size={64} style={styles.headerIconShadow} />;
+};
+
+const renderFormattedText = (text: string) => {
+    if (!text) return null;
+    // Split text by **...**
+    const parts = text.split(/(\*\*.*?\*\*)/g);
+    return parts.map((part, index) => {
+        if (part.startsWith('**') && part.endsWith('**')) {
+            const boldText = part.slice(2, -2);
+            return <Text key={index} style={{ fontFamily: 'Kanit_700Bold', color: '#0f172a' }}>{boldText}</Text>;
+        }
+        return <Text key={index}>{part}</Text>;
+    });
 };
 
 type IssueType = 'WRONG_FOOD_TYPE' | 'WRONG_SAFETY_LEVEL' | 'NOT_FOOD' | 'OTHER';
@@ -42,6 +55,9 @@ export default function ResultScreen() {
     const [feedbackComment, setFeedbackComment] = useState('');
     const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
     const [feedbackDone, setFeedbackDone] = useState(false);
+
+    // Full-screen image viewer modal
+    const [imageFullScreen, setImageFullScreen] = useState(false);
 
     useEffect(() => {
         if (lastScanResult) {
@@ -69,6 +85,15 @@ export default function ResultScreen() {
 
     const config = SAFETY_CONFIG[lastScanResult.safetyLevel];
     const confidencePercent = Math.round(lastScanResult.confidence * 100);
+
+    const detailsParts = lastScanResult.analysisDetail?.split('**คำแนะนำ:**') || [];
+    const analysisText = detailsParts[0]?.trim();
+    const recommendationText = (lastScanResult as any).recommendation || (detailsParts.length > 1 ? detailsParts[1]?.trim() : null);
+
+    // Extract unique labels for the Detected Items list, ensuring no empty or undefined labels are shown
+    const uniqueDetectedItems = lastScanResult.boundingBoxes
+        ?.map(box => box.label)
+        .filter((label, index, self) => label && label.trim() !== '' && self.indexOf(label) === index) || [];
 
     const handleDone = () => {
         clearScanResult();
@@ -125,119 +150,215 @@ export default function ResultScreen() {
     return (
         <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
             <ViewShot ref={viewShotRef} options={{ format: 'jpg', quality: 0.9 }} style={{ backgroundColor: '#f8fafc' }}>
-            {/* Header */}
-            <LinearGradient
-                colors={[config.color, config.color + 'cc']}
-                style={styles.header}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-            >
-                {getHeaderIcon(lastScanResult.safetyLevel)}
-                <Text style={styles.headerLabel}>{config.label}</Text>
-                <Text style={styles.headerFoodType}>{lastScanResult.foodType}</Text>
-            </LinearGradient>
+                {/* Header */}
+                <LinearGradient
+                    colors={[config.color, config.color + 'cc']}
+                    style={styles.header}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                >
+                    {getHeaderIcon(lastScanResult.safetyLevel)}
+                    <Text style={styles.headerLabel}>{config.label}</Text>
+                    <Text style={styles.headerFoodType}>{lastScanResult.foodType}</Text>
+                </LinearGradient>
 
-            {/* Image Container */}
-            {lastScanImageUrl && (
-                <View style={styles.imageWrapper}>
-                    <View style={styles.imageContainer}>
-                        <Image
-                            source={{ uri: lastScanImageUrl }}
-                            style={styles.scannedImage}
-                            resizeMode="cover"
-                        />
-                        {lastScanResult?.boundingBoxes?.map((box, index) => {
-                            // Gemini returns coordinates in [0, 1000] range
-                            const top = `${(box.y_min / 1000) * 100}%` as any;
-                            const left = `${(box.x_min / 1000) * 100}%` as any;
-                            const height = `${((box.y_max - box.y_min) / 1000) * 100}%` as any;
-                            const width = `${((box.x_max - box.x_min) / 1000) * 100}%` as any;
-
-                            return (
-                                <View
-                                    key={index}
-                                    style={[
-                                        styles.boundingBoxOverlay,
-                                        {
-                                            top,
-                                            left,
-                                            width,
-                                            height,
-                                            borderColor: config.color,
-                                        }
-                                    ]}
-                                >
-                                    <View style={[styles.boundingBoxLabelContainer, { backgroundColor: config.color }]}>
-                                        <Text style={styles.boundingBoxOverlayLabel}>{box.label}</Text>
-                                    </View>
-                                </View>
-                            );
-                        })}
-                    </View>
-                </View>
-            )}
-
-            <View style={styles.contentPadding}>
-                {/* Confidence Card */}
-                <Animated.View entering={FadeInUp.delay(300).springify()} style={styles.card}>
-                    <View style={styles.cardHeader}>
-                        <ShieldCheck color="#64748b" size={20} />
-                        <Text style={styles.cardTitle}>ความมั่นใจของ AI</Text>
-                    </View>
-                    <View style={styles.confidenceBarContainer}>
-                        <View style={styles.confidenceBar}>
-                            <Animated.View
-                                style={[
-                                    styles.confidenceFill,
-                                    barStyle,
-                                    { backgroundColor: config.color }
-                                ]}
+                {/* Full-Screen Image Modal */}
+                <Modal
+                    visible={imageFullScreen}
+                    transparent
+                    animationType="fade"
+                    statusBarTranslucent
+                    onRequestClose={() => setImageFullScreen(false)}
+                >
+                    <StatusBar hidden />
+                    <View style={styles.fullScreenModal}>
+                        {/* Image + bounding boxes inside a relative container */}
+                        <View style={styles.fullScreenImageContainer}>
+                            <Image
+                                source={{ uri: lastScanImageUrl! }}
+                                style={styles.fullScreenImage}
+                                resizeMode="contain"
                             />
+                            {/* Render bounding boxes on full-screen image */}
+                            {lastScanResult?.boundingBoxes?.map((box, index) => {
+                                if (typeof box.y_min !== 'number' || typeof box.x_min !== 'number' ||
+                                    typeof box.y_max !== 'number' || typeof box.x_max !== 'number') return null;
+                                const y_min = Math.max(0, Math.min(1000, box.y_min));
+                                const x_min = Math.max(0, Math.min(1000, box.x_min));
+                                const y_max = Math.max(0, Math.min(1000, box.y_max));
+                                const x_max = Math.max(0, Math.min(1000, box.x_max));
+                                if (x_max <= x_min || y_max <= y_min) return null;
+                                const safetyLevel = lastScanResult.safetyLevel;
+                                const cfg = SAFETY_CONFIG[safetyLevel as keyof typeof SAFETY_CONFIG] ?? SAFETY_CONFIG['SAFE'];
+                                return (
+                                    <View
+                                        key={index}
+                                        style={[
+                                            styles.boundingBoxOverlay,
+                                            {
+                                                top: `${(y_min / 1000) * 100}%` as any,
+                                                left: `${(x_min / 1000) * 100}%` as any,
+                                                width: `${((x_max - x_min) / 1000) * 100}%` as any,
+                                                height: `${((y_max - y_min) / 1000) * 100}%` as any,
+                                                borderColor: cfg.color,
+                                                borderWidth: 3,
+                                            }
+                                        ]}
+                                    >
+                                        <View style={[styles.boundingBoxLabelContainer, { backgroundColor: cfg.color }]}>
+                                            <Text style={[styles.boundingBoxOverlayLabel, { fontSize: 13 }]}>{box.label}</Text>
+                                        </View>
+                                    </View>
+                                );
+                            })}
                         </View>
-                        <Text style={[styles.confidenceText, { color: config.color }]}>
-                            {confidencePercent}%
-                        </Text>
+                        <TouchableOpacity
+                            style={styles.fullScreenClose}
+                            onPress={() => setImageFullScreen(false)}
+                        >
+                            <X color="#fff" size={28} />
+                        </TouchableOpacity>
                     </View>
-                </Animated.View>
+                </Modal>
 
-                {/* Analysis Details */}
-                <Animated.View entering={FadeInUp.delay(400).springify()} style={styles.card}>
-                    <View style={styles.cardHeader}>
-                        <Info color="#64748b" size={20} />
-                        <Text style={styles.cardTitle}>รายละเอียดการวิเคราะห์</Text>
+                {/* Image Container */}
+                {lastScanImageUrl && (
+                    <View style={styles.imageWrapper}>
+                        <TouchableOpacity
+                            activeOpacity={0.9}
+                            onPress={() => setImageFullScreen(true)}
+                            style={styles.imageContainer}
+                        >
+                            <Image
+                                source={{ uri: lastScanImageUrl }}
+                                style={styles.scannedImage}
+                                resizeMode="cover"
+                            />
+                            {lastScanResult?.boundingBoxes?.map((box, index) => {
+                                // Ensure valid numbers
+                                if (typeof box.y_min !== 'number' || typeof box.x_min !== 'number' || 
+                                    typeof box.y_max !== 'number' || typeof box.x_max !== 'number') return null;
+
+                                // Gemini should return coordinates in [0, 1000] range, clamp them safely
+                                const y_min = Math.max(0, Math.min(1000, box.y_min));
+                                const x_min = Math.max(0, Math.min(1000, box.x_min));
+                                const y_max = Math.max(0, Math.min(1000, box.y_max));
+                                const x_max = Math.max(0, Math.min(1000, box.x_max));
+
+                                // Avoid rendering invisible boxes
+                                if (x_max <= x_min || y_max <= y_min) return null;
+
+                                const top = `${(y_min / 1000) * 100}%` as any;
+                                const left = `${(x_min / 1000) * 100}%` as any;
+                                const height = `${((y_max - y_min) / 1000) * 100}%` as any;
+                                const width = `${((x_max - x_min) / 1000) * 100}%` as any;
+
+                                return (
+                                    <View
+                                        key={index}
+                                        style={[
+                                            styles.boundingBoxOverlay,
+                                            {
+                                                top,
+                                                left,
+                                                width,
+                                                height,
+                                                borderColor: config.color,
+                                            }
+                                        ]}
+                                    >
+                                        <View style={[styles.boundingBoxLabelContainer, { backgroundColor: config.color }]}>
+                                            <Text style={styles.boundingBoxOverlayLabel}>{box.label}</Text>
+                                        </View>
+                                    </View>
+                                );
+                            })}
+                            {/* Tap hint */}
+                            <View style={styles.tapHint} pointerEvents="none">
+                                <Text style={styles.tapHintText}>🔍 แตะเพื่อดูภาพเต็ม</Text>
+                            </View>
+                        </TouchableOpacity>
                     </View>
-                    <Text style={styles.analysisText}>{lastScanResult.analysisDetail}</Text>
-                </Animated.View>
+                )}
 
-                {/* Bounding Boxes */}
-                {lastScanResult.boundingBoxes && lastScanResult.boundingBoxes.length > 0 && (
+                <View style={styles.contentPadding}>
+                    {/* Confidence Card */}
+                    <Animated.View entering={FadeInUp.delay(300).springify()} style={styles.card}>
+                        <View style={styles.cardHeader}>
+                            <ShieldCheck color="#64748b" size={20} />
+                            <Text style={styles.cardTitle}>ความมั่นใจของ AI</Text>
+                        </View>
+                        <View style={styles.confidenceBarContainer}>
+                            <View style={styles.confidenceBar}>
+                                <Animated.View
+                                    style={[
+                                        styles.confidenceFill,
+                                        barStyle,
+                                        { backgroundColor: config.color }
+                                    ]}
+                                />
+                            </View>
+                            <Text style={[styles.confidenceText, { color: config.color }]}>
+                                {confidencePercent}%
+                            </Text>
+                        </View>
+                    </Animated.View>
+
+                    {/* Analysis Details */}
+                    <Animated.View entering={FadeInUp.delay(400).springify()} style={styles.card}>
+                        <View style={styles.cardHeader}>
+                            <Info color="#64748b" size={20} />
+                            <Text style={styles.cardTitle}>รายละเอียดการวิเคราะห์</Text>
+                        </View>
+                        <Text style={styles.analysisText}>{renderFormattedText(analysisText)}</Text>
+                    </Animated.View>
+
+                    {/* Smart Recommendation */}
+                    {recommendationText && lastScanResult.safetyLevel !== 'DANGEROUS' && (
+                        <Animated.View entering={FadeInUp.delay(450).springify()} style={[styles.card, { borderColor: config.color, borderWidth: 1, backgroundColor: config.color + '08' }]}>
+                            <View style={styles.cardHeader}>
+                                <Lightbulb color={config.color} size={20} />
+                                <Text style={[styles.cardTitle, { color: config.color }]}>คำแนะนำ</Text>
+                            </View>
+                            <Text style={styles.analysisText}>{renderFormattedText(recommendationText)}</Text>
+                        </Animated.View>
+                    )}
+
+                    {/* Bounding Boxes */}
                     <View style={styles.card}>
                         <View style={styles.cardHeader}>
                             <ScanSearch color="#64748b" size={20} />
                             <Text style={styles.cardTitle}>รายการที่ตรวจพบ</Text>
                         </View>
-                        {lastScanResult.boundingBoxes.map((box, index) => (
-                            <View key={index} style={styles.boundingBoxItem}>
-                                <View style={[styles.dot, { backgroundColor: config.color }]} />
-                                <Text style={styles.boundingBoxLabel}>{box.label}</Text>
+                        {uniqueDetectedItems.length > 0 ? (
+                            uniqueDetectedItems.map((label, index) => (
+                                <View key={index} style={styles.boundingBoxItem}>
+                                    <View style={[styles.dot, { backgroundColor: config.color }]} />
+                                    <Text style={styles.boundingBoxLabel}>{label}</Text>
+                                </View>
+                            ))
+                        ) : (
+                            <View style={[styles.boundingBoxItem, { borderBottomWidth: 0 }]}>
+                                <Text style={[styles.boundingBoxLabel, { color: '#94a3b8' }]}>
+                                    ไม่พบจุดที่น่าสังเกตเป็นพิเศษ
+                                </Text>
                             </View>
-                        ))}
+                        )}
                     </View>
-                )}
 
-                {/* Warning for DANGEROUS */}
-                {lastScanResult.safetyLevel === 'DANGEROUS' && (
-                    <View style={styles.warningCard}>
-                        <View style={styles.cardHeader}>
-                            <AlertTriangle color="#b45309" size={20} />
-                            <Text style={styles.warningTitle}>คำเตือน</Text>
+                    {/* Warning for DANGEROUS */}
+                    {lastScanResult.safetyLevel === 'DANGEROUS' && (
+                        <View style={styles.warningCard}>
+                            <View style={styles.cardHeader}>
+                                <AlertTriangle color="#b45309" size={20} />
+                                <Text style={styles.warningTitle}>คำเตือนจาก AI</Text>
+                            </View>
+                            <Text style={styles.warningText}>
+                                {recommendationText ? renderFormattedText(recommendationText) : 'ห้ามรับประทานส่วนผสมนี้ โปรดทิ้งหรือแยกออกจากอาหารอื่นทันที'}
+                            </Text>
                         </View>
-                        <Text style={styles.warningText}>
-                            ห้ามรับประทานส่วนผสมนี้ โปรดทิ้งหรือแยกออกจากอาหารอื่นทันที
-                        </Text>
-                    </View>
-                )}
-            </View>
+                    )}
+                </View>
             </ViewShot>
 
             <View style={styles.contentPadding}>
@@ -752,5 +873,45 @@ const styles = StyleSheet.create({
         fontSize: 16,
         fontWeight: '700',
         color: '#fff',
+    },
+
+    // Full-screen image viewer
+    fullScreenModal: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.95)',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    fullScreenImageContainer: {
+        flex: 1,
+        width: '100%',
+        position: 'relative',
+    },
+    fullScreenImage: {
+        width: '100%',
+        height: '100%',
+    },
+    fullScreenClose: {
+        position: 'absolute',
+        top: 60,
+        right: 20,
+        backgroundColor: 'rgba(0,0,0,0.6)',
+        borderRadius: 24,
+        padding: 10,
+        zIndex: 100,
+    },
+    tapHint: {
+        position: 'absolute',
+        bottom: 8,
+        right: 8,
+        backgroundColor: 'rgba(0,0,0,0.45)',
+        borderRadius: 20,
+        paddingHorizontal: 10,
+        paddingVertical: 4,
+    },
+    tapHintText: {
+        color: '#fff',
+        fontSize: 11,
+        fontWeight: '600',
     },
 });

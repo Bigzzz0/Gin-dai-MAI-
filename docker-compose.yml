@@ -1,0 +1,52 @@
+version: '3.9'
+
+services:
+  # ─── Backend API ────────────────────────────────────────────────────────────
+  api:
+    build:
+      context: ./backend-api
+      dockerfile: Dockerfile
+    container_name: gin-dai-mai-api
+    restart: unless-stopped
+    ports:
+      - "${PORT:-3000}:3000"
+    env_file:
+      - ./backend-api/.env
+    environment:
+      - NODE_ENV=${NODE_ENV:-production}
+      - PORT=3000
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # ─── Mobile App (Expo Dev Server) ───────────────────────────────────────────
+  mobile:
+    build:
+      context: ./mobile-app
+      dockerfile: Dockerfile.dev
+    container_name: gin-dai-mai-mobile
+    restart: unless-stopped
+    ports:
+      - "8081:8081"    # Metro Bundler
+      - "19000:19000"  # Expo Go
+      - "19001:19001"  # Expo DevTools
+      - "19002:19002"  # Expo Dashboard
+    env_file:
+      - ./mobile-app/.env
+    environment:
+      # บอก Expo ว่า QR Code ต้องชี้ไปที่ IP ของเครื่องคอม (ไม่ใช่ IP ภายใน container)
+      - REACT_NATIVE_PACKAGER_HOSTNAME=${HOST_IP}
+      # อัปเดต API URL ให้ชี้ไปที่ backend container จาก host machine
+      - EXPO_PUBLIC_API_URL=http://${HOST_IP}:3000/api/v1
+    depends_on:
+      api:
+        condition: service_healthy
+    stdin_open: true
+    tty: true
+
+networks:
+  default:
+    name: gin-dai-mai-network
