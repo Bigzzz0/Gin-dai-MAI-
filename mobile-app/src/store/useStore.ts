@@ -11,6 +11,8 @@ export interface ScanHistoryItem {
     analysisDetail: string;
     boundingBoxes?: any[];
     createdAt: string;
+    latitude?: number;
+    longitude?: number;
 }
 
 interface AppState {

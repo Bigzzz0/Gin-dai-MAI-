@@ -1,7 +1,7 @@
 import {
     View, Text, StyleSheet, Image,
     TouchableOpacity, ActivityIndicator, Alert, Platform,
-    Dimensions, Modal, TextInput, KeyboardAvoidingView
+    Dimensions, Modal, TextInput, KeyboardAvoidingView, ScrollView
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -9,10 +9,12 @@ import { useStore } from '../src/store/useStore';
 import { apiService } from '../src/services/api';
 import { useState, useEffect } from 'react';
 import { BlurView } from 'expo-blur';
-import { ScanSearch, Undo2, Ban, PenLine, X, CheckCircle, Crop } from 'lucide-react-native';
+import { ScanSearch, Undo2, Ban, PenLine, X, CheckCircle, Crop, MapPin, ShieldAlert, Check } from 'lucide-react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withRepeat, withTiming, Easing, withSequence } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as ImageManipulator from 'expo-image-manipulator';
+import { getCurrentLocation } from '../src/hooks/useLocation';
+import { useDisclaimer } from '../src/hooks/useDisclaimer';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -28,6 +30,7 @@ export default function PreviewScreen() {
     const router = useRouter();
     const insets = useSafeAreaInsets();
     const { currentImageUri, setScanResult, addScanToHistory } = useStore();
+    const { hasAccepted, acceptDisclaimer } = useDisclaimer();
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [loadingMsg, setLoadingMsg] = useState(LOADING_MESSAGES[0]);
 
@@ -35,6 +38,11 @@ export default function PreviewScreen() {
     const [userNote, setUserNote] = useState('');
     const [noteDraft, setNoteDraft] = useState('');
     const [noteModalVisible, setNoteModalVisible] = useState(false);
+
+    // Disclaimer modal state
+    const [showDisclaimerModal, setShowDisclaimerModal] = useState(false);
+    const [dontShowAgain, setDontShowAgain] = useState(false);
+    const [pendingAnalyze, setPendingAnalyze] = useState(false);
 
     // Animation values
     const scanLinePosition = useSharedValue(0);
@@ -71,6 +79,13 @@ export default function PreviewScreen() {
         };
     }, [isAnalyzing, scanLinePosition]);
 
+    // Check disclaimer on mount
+    useEffect(() => {
+        if (hasAccepted === false && currentImageUri) {
+            setShowDisclaimerModal(true);
+        }
+    }, [hasAccepted, currentImageUri]);
+
     const handleOpenNoteModal = () => {
         setNoteDraft(userNote);
         setNoteModalVisible(true);
@@ -87,9 +102,19 @@ export default function PreviewScreen() {
             return;
         }
 
+        // Check if user has accepted disclaimer
+        if (hasAccepted !== true) {
+            setShowDisclaimerModal(true);
+            setPendingAnalyze(true);
+            return;
+        }
+
         setIsAnalyzing(true);
 
         try {
+            // Get location (optional - won't fail if location is disabled)
+            const location = await getCurrentLocation();
+
             // Resize before sending to API (max width 1080 to save bandwidth and compute)
             const resized = await ImageManipulator.manipulateAsync(
                 currentImageUri,
@@ -97,7 +122,12 @@ export default function PreviewScreen() {
                 { compress: 0.8, format: ImageManipulator.SaveFormat.JPEG }
             );
 
-            const response = await apiService.analyzeImage(resized.uri, userNote || undefined);
+            const response = await apiService.analyzeImage(
+                resized.uri,
+                userNote || undefined,
+                location.latitude || undefined,
+                location.longitude || undefined
+            );
 
             setScanResult(response.result, response.scanId, response.imageUrl);
 
@@ -111,6 +141,8 @@ export default function PreviewScreen() {
                 analysisDetail: response.result.analysisDetail,
                 boundingBoxes: response.result.boundingBoxes || [],
                 createdAt: new Date().toISOString(),
+                latitude: location.latitude || undefined,
+                longitude: location.longitude || undefined,
             });
 
             router.push('/result');
@@ -123,6 +155,15 @@ export default function PreviewScreen() {
             );
         } finally {
             setIsAnalyzing(false);
+        }
+    };
+
+    const handleAcceptDisclaimer = () => {
+        acceptDisclaimer(dontShowAgain);
+        setShowDisclaimerModal(false);
+        if (pendingAnalyze) {
+            setPendingAnalyze(false);
+            handleAnalyze();
         }
     };
 
@@ -270,6 +311,92 @@ export default function PreviewScreen() {
                         </View>
                     </View>
                 </KeyboardAvoidingView>
+            </Modal>
+
+            {/* Disclaimer Modal */}
+            <Modal
+                visible={showDisclaimerModal}
+                transparent
+                animationType="slide"
+                onRequestClose={() => setShowDisclaimerModal(false)}
+            >
+                <View style={styles.disclaimerOverlay}>
+                    <ScrollView style={styles.disclaimerContainer} showsVerticalScrollIndicator={false}>
+                        <View style={styles.disclaimerHandle} />
+
+                        <View style={styles.disclaimerIconContainer}>
+                            <View style={styles.disclaimerIconCircle}>
+                                <ShieldAlert color="#f59e0b" size={40} />
+                            </View>
+                        </View>
+
+                        <Text style={styles.disclaimerTitle}>ข้อความปฏิเสธความรับผิดชอบ</Text>
+
+                        <View style={styles.disclaimerContent}>
+                            <Text style={styles.disclaimerText}>
+                                ผลลัพธ์จาก AI เป็นเพียงการคัดกรองความเสี่ยงเบื้องต้น{' '}
+                                <Text style={styles.disclaimerHighlight}>ไม่สามารถทดแทนการตรวจสอบทางห้องปฏิบัติการ
+                                หรือการวินิจฉัยโดยผู้เชี่ยวชาญได้</Text>
+                            </Text>
+
+                            <View style={styles.disclaimerSection}>
+                                <Text style={styles.disclaimerSectionTitle}>ข้อจำกัดของระบบ:</Text>
+                                <View style={styles.disclaimerItem}>
+                                    <ShieldAlert color="#f59e0b" size={16} style={styles.disclaimerItemIcon} />
+                                    <Text style={styles.disclaimerItemText}>
+                                        ตรวจสอบได้เฉพาะความผิดปกติที่ปรากฏบนพื้นผิวภายนอกเท่านั้น
+                                    </Text>
+                                </View>
+                                <View style={styles.disclaimerItem}>
+                                    <ShieldAlert color="#f59e0b" size={16} style={styles.disclaimerItemIcon} />
+                                    <Text style={styles.disclaimerItemText}>
+                                        ความแม่นยำขึ้นอยู่กับความคมชัดของภาพและแสงสว่าง
+                                    </Text>
+                                </View>
+                                <View style={styles.disclaimerItem}>
+                                    <ShieldAlert color="#f59e0b" size={16} style={styles.disclaimerItemIcon} />
+                                    <Text style={styles.disclaimerItemText}>
+                                        AI อาจให้ผลลัพธ์ที่ผิดพลาดได้ ควรใช้วิจารณญาณในการตัดสินใจ
+                                    </Text>
+                                </View>
+                            </View>
+
+                            <View style={styles.disclaimerSection}>
+                                <Text style={styles.disclaimerSectionTitle}>ความรับผิดชอบ:</Text>
+                                <Text style={styles.disclaimerItemText}>
+                                    ผู้ใช้งานต้องใช้วิจารณญาณของตนเองในการตัดสินใจบริโภคอาหาร
+                                    ผู้พัฒนาไม่รับผิดชอบต่อความเสียหายหรืออาการเจ็บป่วยที่อาจเกิดขึ้นจากการนำผลลัพธ์ไปใช้
+                                </Text>
+                            </View>
+                        </View>
+
+                        <View style={styles.disclaimerCheckbox}>
+                            <TouchableOpacity
+                                style={styles.checkbox}
+                                onPress={() => setDontShowAgain(!dontShowAgain)}
+                                activeOpacity={0.7}
+                            >
+                                {dontShowAgain && (
+                                    <View style={styles.checkboxCheck}>
+                                        <Check color="#fff" size={14} />
+                                    </View>
+                                )}
+                            </TouchableOpacity>
+                            <Text style={styles.checkboxLabel}>ไม่ต้องแสดงข้อความนี้อีก</Text>
+                        </View>
+
+                        <TouchableOpacity
+                            style={styles.disclaimerAcceptButton}
+                            onPress={handleAcceptDisclaimer}
+                            activeOpacity={0.8}
+                        >
+                            <Check color="#fff" size={20} />
+                            <Text style={styles.disclaimerAcceptButtonText}>เข้าใจและยอมรับ</Text>
+                        </TouchableOpacity>
+
+                        <View style={{ height: 20 }} />
+                    </ScrollView>
+                </View>
             </Modal>
         </View>
     );
@@ -506,6 +633,137 @@ const styles = StyleSheet.create({
     saveButtonText: {
         fontSize: 15,
         fontWeight: '700',
+        color: '#fff',
+    },
+
+    // Disclaimer Modal
+    disclaimerOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        justifyContent: 'flex-end',
+    },
+    disclaimerContainer: {
+        backgroundColor: '#fff',
+        borderTopLeftRadius: 28,
+        borderTopRightRadius: 28,
+        padding: 24,
+        paddingBottom: Platform.OS === 'ios' ? 40 : 28,
+    },
+    disclaimerHandle: {
+        width: 40,
+        height: 4,
+        backgroundColor: '#e2e8f0',
+        borderRadius: 2,
+        alignSelf: 'center',
+        marginBottom: 16,
+    },
+    disclaimerIconContainer: {
+        alignItems: 'center',
+        marginBottom: 16,
+    },
+    disclaimerIconCircle: {
+        width: 72,
+        height: 72,
+        borderRadius: 36,
+        backgroundColor: '#fef3c7',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    disclaimerTitle: {
+        fontFamily: 'Kanit_700Bold',
+        fontSize: 20,
+        color: '#0f172a',
+        textAlign: 'center',
+        marginBottom: 16,
+    },
+    disclaimerContent: {
+        marginBottom: 16,
+    },
+    disclaimerText: {
+        fontFamily: 'Kanit_400Regular',
+        fontSize: 14,
+        color: '#475569',
+        lineHeight: 22,
+        marginBottom: 16,
+    },
+    disclaimerHighlight: {
+        fontFamily: 'Kanit_600SemiBold',
+        color: '#ef4444',
+    },
+    disclaimerSection: {
+        marginBottom: 12,
+        backgroundColor: '#f8fafc',
+        padding: 12,
+        borderRadius: 12,
+    },
+    disclaimerSectionTitle: {
+        fontFamily: 'Kanit_600SemiBold',
+        fontSize: 14,
+        color: '#0f172a',
+        marginBottom: 8,
+    },
+    disclaimerItem: {
+        flexDirection: 'row',
+        marginBottom: 8,
+    },
+    disclaimerItemIcon: {
+        marginRight: 8,
+        marginTop: 2,
+    },
+    disclaimerItemText: {
+        fontFamily: 'Kanit_400Regular',
+        fontSize: 13,
+        color: '#64748b',
+        lineHeight: 20,
+        flex: 1,
+    },
+    disclaimerCheckbox: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 16,
+        paddingHorizontal: 4,
+    },
+    checkbox: {
+        width: 22,
+        height: 22,
+        borderRadius: 6,
+        borderWidth: 2,
+        borderColor: '#cbd5e1',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginRight: 10,
+    },
+    checkboxCheck: {
+        width: 16,
+        height: 16,
+        borderRadius: 4,
+        backgroundColor: '#10b981',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    checkboxLabel: {
+        fontFamily: 'Kanit_400Regular',
+        fontSize: 14,
+        color: '#64748b',
+        flex: 1,
+    },
+    disclaimerAcceptButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#10b981',
+        paddingVertical: 16,
+        borderRadius: 16,
+        gap: 8,
+        shadowColor: '#10b981',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+        elevation: 5,
+    },
+    disclaimerAcceptButtonText: {
+        fontFamily: 'Kanit_700Bold',
+        fontSize: 16,
         color: '#fff',
     },
 });

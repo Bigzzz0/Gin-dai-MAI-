@@ -43,6 +43,7 @@ export async function historyRoutes(fastify: FastifyInstance) {
           aiConfidence: true,
           createdAt: true,
           aiResponseJson: true,
+          userNote: true,
         },
       }),
       prisma.scanHistory.count({ where: { userId: user.id } }),

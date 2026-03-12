@@ -26,20 +26,30 @@ export default function HistoryScreen() {
         setLoading(true);
         try {
             const response = await apiService.getHistory(1, 20);
+            console.log('=== History API Response ===');
+            console.log('Response data:', response.data);
             if (response.data) {
                 // Simulate slight network delay for skeletons
                 setTimeout(() => {
-                    const mappedHistory = response.data.map((item: any) => ({
-                        id: item.id,
-                        imageUrl: item.imageUrl,
-                        isFood: item.isFood ?? item.aiResponseJson?.isFood ?? true,
-                        safetyLevel: item.safetyLevel,
-                        foodType: item.foodType,
-                        confidence: item.aiConfidence,
-                        analysisDetail: item.analysisDetail || item.aiResponseJson?.analysisDetail || '',
-                        boundingBoxes: item.boundingBoxes || item.aiResponseJson?.boundingBoxes || [],
-                        createdAt: item.createdAt,
-                    }));
+                    const mappedHistory = response.data.map((item: any) => {
+                        const historyItem = {
+                            id: item.id,
+                            imageUrl: item.imageUrl,
+                            isFood: item.isFood ?? item.aiResponseJson?.isFood ?? true,
+                            safetyLevel: item.safetyLevel,
+                            foodType: item.foodType,
+                            confidence: item.aiConfidence,
+                            analysisDetail: item.aiResponseJson?.analysisDetail || '',
+                            boundingBoxes: item.aiResponseJson?.boundingBoxes || [],
+                            createdAt: item.createdAt,
+                        };
+                        console.log('Mapped history item:', {
+                            id: historyItem.id,
+                            imageUrl: historyItem.imageUrl,
+                            safetyLevel: historyItem.safetyLevel,
+                        });
+                        return historyItem;
+                    });
                     setScanHistory(mappedHistory);
                     setLoading(false);
                 }, 500);
@@ -165,10 +175,18 @@ export default function HistoryScreen() {
 
                         return (
                             <Animated.View layout={Layout.springify()} entering={FadeIn.delay(index * 100)}>
-                                <TouchableOpacity 
-                                    style={styles.card} 
+                                <TouchableOpacity
+                                    style={styles.card}
                                     activeOpacity={0.7}
                                     onPress={() => {
+                                        console.log('=== Click History Item ===');
+                                        console.log('Item ID:', item.id);
+                                        console.log('Item ImageURL:', item.imageUrl);
+                                        console.log('Item safetyLevel:', item.safetyLevel);
+
+                                        // Ensure imageUrl is valid before passing
+                                        const validImageUrl = item.imageUrl && item.imageUrl.trim() !== '' ? item.imageUrl : null;
+                                        
                                         setScanResult({
                                             isFood: item.isFood,
                                             safetyLevel: item.safetyLevel,
@@ -176,32 +194,83 @@ export default function HistoryScreen() {
                                             confidence: item.confidence,
                                             analysisDetail: item.analysisDetail,
                                             boundingBoxes: item.boundingBoxes ?? [],
-                                        }, item.id, item.imageUrl);
+                                        }, item.id, validImageUrl);
+                                        console.log('Navigating to /result with imageUrl:', validImageUrl);
                                         router.push('/result');
                                     }}
                                 >
-                                    {item.imageUrl ? (
-                                        <Image
-                                            source={{ uri: item.imageUrl }}
-                                            style={styles.thumbnail}
-                                            resizeMode="cover"
-                                        />
-                                    ) : (
-                                        <View style={[styles.thumbnail, styles.thumbnailPlaceholder]}>
-                                            <Camera color="#94a3b8" size={32} />
-                                        </View>
-                                    )}
+                                    <View style={styles.cardImageContainer}>
+                                        {item.imageUrl ? (
+                                            <>
+                                                <Image
+                                                    source={{ uri: item.imageUrl }}
+                                                    style={styles.thumbnail}
+                                                    resizeMode="contain"
+                                                />
+                                                {/* Render bounding boxes on thumbnail */}
+                                                {item.boundingBoxes && item.boundingBoxes.length > 0 && item.boundingBoxes.slice(0, 3).map((box, index) => {
+                                                    if (!box || typeof box.y_min !== 'number' || typeof box.x_min !== 'number' ||
+                                                        typeof box.y_max !== 'number' || typeof box.x_max !== 'number') return null;
+                                                    
+                                                    const y_min = Math.max(0, Math.min(1000, box.y_min));
+                                                    const x_min = Math.max(0, Math.min(1000, box.x_min));
+                                                    const y_max = Math.max(0, Math.min(1000, box.y_max));
+                                                    const x_max = Math.max(0, Math.min(1000, box.x_max));
+                                                    
+                                                    if (x_max <= x_min || y_max <= y_min) return null;
+                                                    
+                                                    return (
+                                                        <View
+                                                            key={index}
+                                                            style={[
+                                                                styles.boundingBoxOverlay,
+                                                                {
+                                                                    top: `${(y_min / 1000) * 100}%`,
+                                                                    left: `${(x_min / 1000) * 100}%`,
+                                                                    width: `${((x_max - x_min) / 1000) * 100}%`,
+                                                                    height: `${((y_max - y_min) / 1000) * 100}%`,
+                                                                    borderColor: config.color,
+                                                                }
+                                                            ]}
+                                                        >
+                                                            <Text style={[styles.boundingBoxLabel, { color: config.color, fontSize: 9 }]} numberOfLines={1}>
+                                                                {box.label}
+                                                            </Text>
+                                                        </View>
+                                                    );
+                                                })}
+                                            </>
+                                        ) : (
+                                            <View style={[styles.thumbnail, styles.thumbnailPlaceholder]}>
+                                                <Camera color="#94a3b8" size={32} />
+                                            </View>
+                                        )}
+                                        {item.boundingBoxes && item.boundingBoxes.length > 3 && (
+                                            <View style={styles.boundingBoxCount}>
+                                                <Text style={styles.boundingBoxCountText}>+{item.boundingBoxes.length - 3}</Text>
+                                            </View>
+                                        )}
+                                    </View>
 
                                     <View style={styles.cardInfo}>
                                         <View style={styles.cardHeaderRow}>
                                             <Text style={styles.foodType} numberOfLines={1}>{item.foodType}</Text>
-                                            <TouchableOpacity 
-                                                onPress={() => handleDelete(item.id)}
-                                                style={styles.deleteButton}
-                                                activeOpacity={0.6}
-                                            >
-                                                <Trash2 color="#ef4444" size={18} />
-                                            </TouchableOpacity>
+                                            <View style={styles.cardActions}>
+                                                <TouchableOpacity
+                                                    onPress={() => router.push(`/anomaly-detail?id=${item.id}` as any)}
+                                                    style={styles.detailButton}
+                                                    activeOpacity={0.6}
+                                                >
+                                                    <Info color="#3b82f6" size={18} />
+                                                </TouchableOpacity>
+                                                <TouchableOpacity
+                                                    onPress={() => handleDelete(item.id)}
+                                                    style={styles.deleteButton}
+                                                    activeOpacity={0.6}
+                                                >
+                                                    <Trash2 color="#ef4444" size={18} />
+                                                </TouchableOpacity>
+                                            </View>
                                         </View>
                                         
                                         <View style={styles.metaRow}>
@@ -325,15 +394,52 @@ const styles = StyleSheet.create({
         borderWidth: 1,
         borderColor: '#f1f5f9',
     },
+    cardImageContainer: {
+        position: 'relative',
+        backgroundColor: '#000',
+        borderRadius: 14,
+        overflow: 'hidden',
+    },
     thumbnail: {
         width: 100,
         height: 100,
         borderRadius: 14,
+        backgroundColor: '#f1f5f9',
     },
     thumbnailPlaceholder: {
         backgroundColor: '#f1f5f9',
         justifyContent: 'center',
         alignItems: 'center',
+    },
+    boundingBoxOverlay: {
+        position: 'absolute',
+        borderWidth: 1.5,
+        borderRadius: 3,
+        borderStyle: 'solid',
+    },
+    boundingBoxLabel: {
+        fontFamily: 'Kanit_700Bold',
+        fontSize: 9,
+        fontWeight: 'bold',
+        backgroundColor: 'rgba(0,0,0,0.7)',
+        paddingHorizontal: 3,
+        paddingVertical: 1,
+        borderRadius: 2,
+        overflow: 'hidden',
+    },
+    boundingBoxCount: {
+        position: 'absolute',
+        bottom: 6,
+        right: 6,
+        backgroundColor: 'rgba(0,0,0,0.7)',
+        borderRadius: 10,
+        paddingHorizontal: 6,
+        paddingVertical: 2,
+    },
+    boundingBoxCountText: {
+        color: '#fff',
+        fontFamily: 'Kanit_700Bold',
+        fontSize: 10,
     },
     cardInfo: {
         flex: 1,
@@ -346,9 +452,21 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         alignItems: 'flex-start',
     },
+    cardActions: {
+        flexDirection: 'row',
+        gap: 4,
+    },
+    detailButton: {
+        padding: 4,
+        marginLeft: 4,
+        backgroundColor: '#eff6ff',
+        borderRadius: 6,
+    },
     deleteButton: {
         padding: 4,
-        marginLeft: 8,
+        marginLeft: 4,
+        backgroundColor: '#fef2f2',
+        borderRadius: 6,
     },
     foodType: {
         fontFamily: 'Kanit_700Bold',

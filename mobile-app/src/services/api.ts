@@ -91,7 +91,7 @@ export const apiService = {
     /**
      * ส่งรูปภาพไปให้ Backend วิเคราะห์ด้วย Gemini AI
      */
-    analyzeImage: async (imageUri: string, note?: string): Promise<AnalyzeResponse> => {
+    analyzeImage: async (imageUri: string, note?: string, latitude?: number, longitude?: number): Promise<AnalyzeResponse> => {
         const formData = new FormData();
         const filename = imageUri.split('/').pop() ?? 'photo.jpg';
         const ext = filename.split('.').pop()?.toLowerCase() ?? 'jpg';
@@ -108,9 +108,15 @@ export const apiService = {
             formData.append('note', note.trim());
         }
 
+        // Append optional location data
+        if (latitude !== undefined && longitude !== undefined) {
+            formData.append('latitude', latitude.toString());
+            formData.append('longitude', longitude.toString());
+        }
+
         // Native fetch is highly recommended for FormData in React Native
         const { data: { session } } = await supabase.auth.getSession();
-        
+
         const response = await fetch(`${API_BASE_URL}/scans/analyze`, {
             method: 'POST',
             body: formData,
@@ -171,5 +177,54 @@ export const apiService = {
             comment: comment?.trim() || undefined,
         });
         return response.data;
+    },
+
+    /**
+     * ดึงข้อมูลโปรไฟล์ผู้ใช้
+     */
+    getProfile: async () => {
+        const response = await apiClient.get('/auth/me');
+        return response.data;
+    },
+
+    /**
+     * อัปเดตโปรไฟล์ผู้ใช้
+     */
+    updateProfile: async (name?: string, avatarUrl?: string) => {
+        const response = await apiClient.put('/auth/profile', { name, avatarUrl });
+        return response.data;
+    },
+
+    /**
+     * อัปโหลดรูปโปรไฟล์ไปยัง Supabase Storage
+     */
+    uploadAvatar: async (uri: string, userId: string) => {
+        const formData = new FormData();
+        const filename = `avatar_${Date.now()}.jpg`;
+        
+        formData.append('file', {
+            uri,
+            name: filename,
+            type: 'image/jpeg',
+        } as any);
+
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        // Upload directly to Supabase Storage
+        const { data, error } = await supabase.storage
+            .from('avatars')
+            .upload(`${userId}/${filename}`, formData as any, {
+                cacheControl: '3600',
+                upsert: true,
+            });
+
+        if (error) throw error;
+
+        // Get public URL
+        const { data: { publicUrl } } = supabase.storage
+            .from('avatars')
+            .getPublicUrl(`${userId}/${filename}`);
+
+        return publicUrl;
     },
 };

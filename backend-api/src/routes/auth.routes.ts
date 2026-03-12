@@ -82,4 +82,32 @@ export async function authRoutes(fastify: FastifyInstance) {
 
     return reply.status(200).send({ user });
   });
+
+  /**
+   * PUT /api/v1/auth/profile
+   * Update user profile (name, avatar URL, etc.)
+   */
+  fastify.put("/profile", {
+    preHandler: [verifyAuth],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const supabaseUser = (request as any).supabaseUser;
+    const body = request.body as { name?: string; avatarUrl?: string };
+
+    const user = await prisma.user.update({
+      where: { supabaseAuthId: supabaseUser.id },
+      data: {
+        name: body.name,
+      },
+    });
+
+    // Also update Supabase auth metadata
+    await getSupabaseAdmin().auth.updateUserById(supabaseUser.id, {
+      user_metadata: {
+        display_name: body.name,
+        avatar_url: body.avatarUrl,
+      },
+    });
+
+    return reply.status(200).send({ user });
+  });
 }

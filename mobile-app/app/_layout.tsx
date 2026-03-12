@@ -74,6 +74,9 @@ export default function RootLayout() {
         <Stack.Screen name="result" options={{ headerShown: false }} />
         <Stack.Screen name="auth" options={{ headerShown: false }} />
         <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
+        <Stack.Screen name="disclaimer" options={{ title: 'ข้อความปฏิเสธความรับผิดชอบ', headerBackTitle: 'กลับ' }} />
+        <Stack.Screen name="anomaly-detail" options={{ title: 'รายละเอียดความผิดปกติ', headerBackTitle: 'กลับ' }} />
+        <Stack.Screen name="profile" options={{ title: 'โปรไฟล์', headerBackTitle: 'กลับ' }} />
       </Stack>
       <StatusBar style="auto" />
     </ThemeProvider>

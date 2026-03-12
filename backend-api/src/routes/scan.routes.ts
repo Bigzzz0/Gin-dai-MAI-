@@ -32,6 +32,8 @@ export async function scanRoutes(fastify: FastifyInstance) {
     let imageBuffer: Buffer | null = null;
     let imageMimetype = "";
     let userNote: string | undefined = undefined;
+    let latitude: number | undefined = undefined;
+    let longitude: number | undefined = undefined;
 
     try {
       for await (const part of request.parts()) {
@@ -41,6 +43,10 @@ export async function scanRoutes(fastify: FastifyInstance) {
           imageBuffer = await part.toBuffer();
         } else if (part.type === 'field' && part.fieldname === 'note') {
           userNote = part.value as string;
+        } else if (part.type === 'field' && part.fieldname === 'latitude') {
+          latitude = parseFloat(part.value as string);
+        } else if (part.type === 'field' && part.fieldname === 'longitude') {
+          longitude = parseFloat(part.value as string);
         } else if (part.type === 'field' && part.fieldname === 'file') {
           // If RN fetch sent the file as a string field due to stringification error
           fastify.log.error(`File was received as a text FIELD with value: ${part.value}`);
@@ -111,6 +117,8 @@ export async function scanRoutes(fastify: FastifyInstance) {
           aiConfidence: aiResult.confidence,
           aiResponseJson: aiResult as any,
           userNote: userNote?.trim() ?? null,
+          latitude: latitude,
+          longitude: longitude,
         },
       });
     } catch (err: any) {

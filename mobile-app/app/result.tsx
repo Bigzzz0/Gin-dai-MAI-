@@ -1,7 +1,8 @@
 import {
     View, Text, StyleSheet, Image,
     TouchableOpacity, ScrollView, Share, Platform,
-    Modal, TextInput, Alert, StatusBar
+    Modal, TextInput, Alert, StatusBar, Dimensions,
+    LayoutChangeEvent
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useStore } from '../src/store/useStore';
@@ -49,6 +50,14 @@ export default function ResultScreen() {
 
     const animatedWidth = useSharedValue(0);
 
+    // Debug logging
+    useEffect(() => {
+        console.log('=== Result Screen Debug ===');
+        console.log('lastScanResult:', lastScanResult);
+        console.log('lastScanImageUrl:', lastScanImageUrl);
+        console.log('lastScanId:', lastScanId);
+    }, [lastScanResult, lastScanImageUrl, lastScanId]);
+
     // Feedback modal state
     const [feedbackVisible, setFeedbackVisible] = useState(false);
     const [selectedIssue, setSelectedIssue] = useState<IssueType | null>(null);
@@ -58,12 +67,65 @@ export default function ResultScreen() {
 
     // Full-screen image viewer modal
     const [imageFullScreen, setImageFullScreen] = useState(false);
+    const [imageSize, setImageSize] = useState({ width: 0, height: 0 });
+    const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
 
     useEffect(() => {
         if (lastScanResult) {
             animatedWidth.value = withSpring(Math.round(lastScanResult.confidence * 100), { damping: 15, stiffness: 90 });
         }
     }, [lastScanResult, animatedWidth]);
+
+    // Load image dimensions when full-screen modal opens
+    useEffect(() => {
+        if (imageFullScreen && lastScanImageUrl) {
+            Image.getSize(lastScanImageUrl, (width, height) => {
+                setImageSize({ width, height });
+            }, (error) => {
+                console.error('Error getting image size:', error);
+            });
+        }
+    }, [imageFullScreen, lastScanImageUrl]);
+
+    // Calculate bounding box position for full-screen contain image
+    const calculateBoundingBoxStyle = (box: any, containerWidth: number, containerHeight: number) => {
+        if (!imageSize.width || !imageSize.height) return {};
+
+        const imageAspect = imageSize.width / imageSize.height;
+        const containerAspect = containerWidth / containerHeight;
+
+        let displayWidth: number;
+        let displayHeight: number;
+        let offsetX: number;
+        let offsetY: number;
+
+        if (imageAspect > containerAspect) {
+            // Image is wider - fit to width
+            displayWidth = containerWidth;
+            displayHeight = containerWidth / imageAspect;
+            offsetX = 0;
+            offsetY = (containerHeight - displayHeight) / 2;
+        } else {
+            // Image is taller - fit to height
+            displayHeight = containerHeight;
+            displayWidth = containerHeight * imageAspect;
+            offsetX = (containerWidth - displayWidth) / 2;
+            offsetY = 0;
+        }
+
+        // Convert from 0-1000 scale to pixel coordinates
+        const x_min = (box.x_min / 1000) * displayWidth + offsetX;
+        const x_max = (box.x_max / 1000) * displayWidth + offsetX;
+        const y_min = (box.y_min / 1000) * displayHeight + offsetY;
+        const y_max = (box.y_max / 1000) * displayHeight + offsetY;
+
+        return {
+            left: x_min,
+            top: y_min,
+            width: x_max - x_min,
+            height: y_max - y_min,
+        };
+    };
 
     const barStyle = useAnimatedStyle(() => {
         return {
@@ -172,34 +234,66 @@ export default function ResultScreen() {
                 >
                     <StatusBar hidden />
                     <View style={styles.fullScreenModal}>
+                        {/* Close button */}
+                        <TouchableOpacity
+                            style={styles.fullScreenClose}
+                            onPress={() => setImageFullScreen(false)}
+                        >
+                            <X color="#fff" size={28} />
+                        </TouchableOpacity>
+                        
                         {/* Image + bounding boxes inside a relative container */}
-                        <View style={styles.fullScreenImageContainer}>
+                        <View
+                            style={styles.fullScreenImageContainer}
+                            onLayout={(event: LayoutChangeEvent) => {
+                                const { width, height } = event.nativeEvent.layout;
+                                console.log('Full-screen container layout:', { width, height });
+                                setContainerSize({ width, height });
+                            }}
+                        >
                             <Image
                                 source={{ uri: lastScanImageUrl! }}
                                 style={styles.fullScreenImage}
                                 resizeMode="contain"
+                                onError={(e) => {
+                                    console.error('Full-screen image load error:', e.nativeEvent.error);
+                                }}
+                                onLoad={() => {
+                                    console.log('Full-screen image loaded successfully');
+                                }}
                             />
                             {/* Render bounding boxes on full-screen image */}
                             {lastScanResult?.boundingBoxes?.map((box, index) => {
                                 if (typeof box.y_min !== 'number' || typeof box.x_min !== 'number' ||
                                     typeof box.y_max !== 'number' || typeof box.x_max !== 'number') return null;
+
                                 const y_min = Math.max(0, Math.min(1000, box.y_min));
                                 const x_min = Math.max(0, Math.min(1000, box.x_min));
                                 const y_max = Math.max(0, Math.min(1000, box.y_max));
                                 const x_max = Math.max(0, Math.min(1000, box.x_max));
+
                                 if (x_max <= x_min || y_max <= y_min) return null;
+
                                 const safetyLevel = lastScanResult.safetyLevel;
                                 const cfg = SAFETY_CONFIG[safetyLevel as keyof typeof SAFETY_CONFIG] ?? SAFETY_CONFIG['SAFE'];
+
+                                // Calculate correct position for contain resizeMode
+                                const bboxStyle = calculateBoundingBoxStyle(
+                                    { x_min, y_min, x_max, y_max },
+                                    containerSize.width || Dimensions.get('window').width,
+                                    containerSize.height || Dimensions.get('window').height * 0.6
+                                );
+
                                 return (
                                     <View
                                         key={index}
                                         style={[
-                                            styles.boundingBoxOverlay,
+                                            styles.boundingBoxOverlayAbsolute,
                                             {
-                                                top: `${(y_min / 1000) * 100}%` as any,
-                                                left: `${(x_min / 1000) * 100}%` as any,
-                                                width: `${((x_max - x_min) / 1000) * 100}%` as any,
-                                                height: `${((y_max - y_min) / 1000) * 100}%` as any,
+                                                left: bboxStyle.left || 0,
+                                                top: bboxStyle.top || 0,
+                                                width: bboxStyle.width || 0,
+                                                height: bboxStyle.height || 0,
                                                 borderColor: cfg.color,
                                                 borderWidth: 3,
                                             }
@@ -212,12 +306,6 @@ export default function ResultScreen() {
                                 );
                             })}
                         </View>
-                        <TouchableOpacity
-                            style={styles.fullScreenClose}
-                            onPress={() => setImageFullScreen(false)}
-                        >
-                            <X color="#fff" size={28} />
-                        </TouchableOpacity>
                     </View>
                 </Modal>
 
@@ -230,9 +318,12 @@ export default function ResultScreen() {
                             style={styles.imageContainer}
                         >
                             <Image
-                                source={{ uri: lastScanImageUrl }}
+                                source={{ uri: lastScanImageUrl! }}
                                 style={styles.scannedImage}
-                                resizeMode="cover"
+                                resizeMode="contain"
+                                onError={(e) => {
+                                    console.error('Image load error:', e.nativeEvent.error);
+                                }}
                             />
                             {lastScanResult?.boundingBoxes?.map((box, index) => {
                                 // Ensure valid numbers
@@ -572,10 +663,18 @@ const styles = StyleSheet.create({
         elevation: 8,
         borderWidth: 4,
         borderColor: '#fff',
+        position: 'relative',
     },
     scannedImage: {
         width: '100%',
         height: 220,
+        backgroundColor: '#f1f5f9',
+    },
+    boundingBoxOverlay: {
+        position: 'absolute',
+        borderWidth: 2,
+        borderRadius: 4,
+        borderStyle: 'solid',
     },
 
     card: {
@@ -645,10 +744,11 @@ const styles = StyleSheet.create({
         fontSize: 16,
         color: '#475569',
     },
-    boundingBoxOverlay: {
+    boundingBoxOverlayAbsolute: {
         position: 'absolute',
-        borderWidth: 2,
+        borderWidth: 3,
         borderRadius: 4,
+        borderStyle: 'solid',
     },
     boundingBoxLabelContainer: {
         position: 'absolute',
@@ -882,9 +982,17 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
     },
-    fullScreenImageContainer: {
+    fullScreenModal: {
         flex: 1,
-        width: '100%',
+        backgroundColor: 'rgba(0,0,0,0.95)',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    fullScreenImageContainer: {
+        width: Dimensions.get('window').width,
+        height: Dimensions.get('window').height * 0.7,
+        justifyContent: 'center',
+        alignItems: 'center',
         position: 'relative',
     },
     fullScreenImage: {

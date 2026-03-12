@@ -32,6 +32,8 @@ model ScanHistory {
   aiConfidence   Float          // 0.0 - 1.0
   aiResponseJson Json           // Full AI JSON response with boundingBoxes, analysisDetail
   userNote       String?        // Optional note from user before analysis
+  latitude       Float?         // Location where scan was taken
+  longitude      Float?         // Location where scan was taken
   feedbacks      ScanFeedback[]
   createdAt      DateTime       @default(now())
 

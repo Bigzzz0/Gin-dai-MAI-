@@ -31,12 +31,12 @@ export default function TabLayout() {
             shadowOpacity: 0.1,
             shadowRadius: 20,
         },
-        tabBarBackground: () => 
+        tabBarBackground: () =>
             Platform.OS === 'ios' ? (
-                <BlurView 
-                    intensity={80} 
-                    tint="light" 
-                    style={{ ...StyleSheet.absoluteFillObject, borderRadius: 32, overflow: 'hidden' }} 
+                <BlurView
+                    intensity={80}
+                    tint="light"
+                    style={{ ...StyleSheet.absoluteFillObject, borderRadius: 32, overflow: 'hidden' }}
                 />
             ) : null,
       }}>
@@ -52,6 +52,13 @@ export default function TabLayout() {
         options={{
           title: 'History',
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="clock.arrow.circlepath" color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="settings"
+        options={{
+          title: 'Settings',
+          tabBarIcon: ({ color }) => <IconSymbol size={28} name="gearshape.fill" color={color} />,
         }}
       />
     </Tabs>
