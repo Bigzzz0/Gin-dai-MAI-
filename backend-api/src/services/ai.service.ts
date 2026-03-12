@@ -58,7 +58,8 @@ JSON Output Schema:
  */
 export async function analyzeImageBuffer(
   imageBuffer: Buffer,
-  mimeType: "image/jpeg" | "image/png" | "image/webp"
+  mimeType: "image/jpeg" | "image/png" | "image/webp",
+  userNote?: string
 ): Promise<AIScanResult> {
   const imagePart = {
     inlineData: {
@@ -67,7 +68,12 @@ export async function analyzeImageBuffer(
     },
   };
 
-  const result = await model.generateContent([FOOD_SAFETY_PROMPT, imagePart]);
+  // Append user note after the main prompt (does NOT override it)
+  const fullPrompt = userNote?.trim()
+    ? `${FOOD_SAFETY_PROMPT}\n\nAdditional User Note (use as extra context only): ${userNote.trim()}`
+    : FOOD_SAFETY_PROMPT;
+
+  const result = await model.generateContent([fullPrompt, imagePart]);
   const response = await result.response;
   const rawText = response.text();
 

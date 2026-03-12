@@ -6,6 +6,7 @@ import * as dotenv from "dotenv";
 import { authRoutes } from "./routes/auth.routes";
 import { scanRoutes } from "./routes/scan.routes";
 import { historyRoutes } from "./routes/history.routes";
+import { feedbackRoutes } from "./routes/feedback.routes";
 
 dotenv.config();
 
@@ -30,6 +31,7 @@ app.get("/health", async () => ({ status: "ok", timestamp: new Date().toISOStrin
 app.register(authRoutes, { prefix: "/api/v1/auth" });
 app.register(scanRoutes, { prefix: "/api/v1/scans" });
 app.register(historyRoutes, { prefix: "/api/v1/history" });
+app.register(feedbackRoutes, { prefix: "/api/v1/scans" });
 
 // --- Start Server ---
 const start = async () => {

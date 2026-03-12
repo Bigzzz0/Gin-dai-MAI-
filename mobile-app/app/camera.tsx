@@ -3,7 +3,7 @@ import { CameraView, CameraType, useCameraPermissions } from 'expo-camera';
 import { useState, useRef } from 'react';
 import { useRouter } from 'expo-router';
 import { useStore } from '../src/store/useStore';
-import { Camera as CameraIcon, FlipHorizontal, X, Grid3X3, Zap, ZapOff } from 'lucide-react-native';
+import { Camera as CameraIcon, FlipHorizontal, X, Grid3X3, Zap, ZapOff, Crop } from 'lucide-react-native';
 import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
@@ -50,7 +50,7 @@ export default function CameraScreen() {
         setFacing(current => (current === 'back' ? 'front' : 'back'));
     }
 
-    const takePicture = async () => {
+    const takePicture = async (goToCrop = false) => {
         if (cameraRef.current) {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
             captureScale.value = withSpring(0.9, { damping: 10, stiffness: 400 });
@@ -64,7 +64,8 @@ export default function CameraScreen() {
                 if (photo) {
                     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
                     setCurrentImageUri(photo.uri);
-                    router.push('/crop');
+                    // Crop is optional: crop icon → /crop, shutter → /preview directly
+                    router.push(goToCrop ? '/crop' : '/preview');
                 }
             } catch (error) {
                 console.error('Failed to take picture:', error);
@@ -153,12 +154,23 @@ export default function CameraScreen() {
                         <View style={styles.bottomBar}>
                             <View style={styles.controlsRow}>
 
-                                {/* Dummy view for symmetry */}
-                                <View style={{ width: 50 }} />
+                                {/* Crop button (optional) */}
+                                <View style={styles.iconWithLabel}>
+                                    <TouchableOpacity
+                                        style={styles.iconButton}
+                                        onPress={() => takePicture(true)}
+                                        activeOpacity={0.7}
+                                    >
+                                        <BlurView intensity={30} tint="dark" style={styles.blurContainer}>
+                                            <Crop color="#fff" size={22} />
+                                        </BlurView>
+                                    </TouchableOpacity>
+                                    <Text style={styles.iconLabel}>Crop</Text>
+                                </View>
 
-                                {/* Capture Button */}
+                                {/* Capture Button → direct to preview */}
                                 <TouchableOpacity
-                                    onPress={takePicture}
+                                    onPress={() => takePicture(false)}
                                     activeOpacity={0.9}
                                 >
                                     <Animated.View style={[styles.captureButtonOuter, animatedCaptureStyle]}>
@@ -167,15 +179,18 @@ export default function CameraScreen() {
                                 </TouchableOpacity>
 
                                 {/* Flip Camera Button */}
-                                <TouchableOpacity
-                                    style={styles.iconButton}
-                                    onPress={toggleCameraFacing}
-                                    activeOpacity={0.7}
-                                >
-                                    <BlurView intensity={30} tint="dark" style={styles.blurContainer}>
-                                        <FlipHorizontal color="#fff" size={24} />
-                                    </BlurView>
-                                </TouchableOpacity>
+                                <View style={styles.iconWithLabel}>
+                                    <TouchableOpacity
+                                        style={styles.iconButton}
+                                        onPress={toggleCameraFacing}
+                                        activeOpacity={0.7}
+                                    >
+                                        <BlurView intensity={30} tint="dark" style={styles.blurContainer}>
+                                            <FlipHorizontal color="#fff" size={24} />
+                                        </BlurView>
+                                    </TouchableOpacity>
+                                    <Text style={styles.iconLabel}>Flip</Text>
+                                </View>
 
                             </View>
                         </View>
@@ -219,6 +234,15 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         alignItems: 'center',
         paddingHorizontal: 20,
+    },
+    iconWithLabel: {
+        alignItems: 'center',
+        gap: 4,
+    },
+    iconLabel: {
+        color: 'rgba(255,255,255,0.75)',
+        fontSize: 11,
+        fontWeight: '600',
     },
     iconButton: {
         width: 50,
