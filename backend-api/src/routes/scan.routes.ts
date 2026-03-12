@@ -90,7 +90,12 @@ export async function scanRoutes(fastify: FastifyInstance) {
         userNote?.trim() || undefined
       );
     } catch (err: any) {
-      fastify.log.error("AI analysis failed:", err);
+      fastify.log.error({
+        msg: "AI analysis failed detailed error",
+        error: err.message,
+        stack: err.stack,
+        details: err.response?.data || err
+      });
       return reply.status(500).send({ error: "AI analysis failed. Please try again." });
     }
 

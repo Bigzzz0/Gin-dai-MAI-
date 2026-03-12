@@ -236,7 +236,7 @@ export default function ResultScreen() {
                             />
                             {lastScanResult?.boundingBoxes?.map((box, index) => {
                                 // Ensure valid numbers
-                                if (typeof box.y_min !== 'number' || typeof box.x_min !== 'number' || 
+                                if (typeof box.y_min !== 'number' || typeof box.x_min !== 'number' ||
                                     typeof box.y_max !== 'number' || typeof box.x_max !== 'number') return null;
 
                                 // Gemini should return coordinates in [0, 1000] range, clamp them safely
