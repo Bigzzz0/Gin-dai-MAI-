@@ -1,6 +1,8 @@
 import axios from 'axios';
 import { supabase } from '../lib/supabase';
 import { AIScanResult } from '../types/scan.types';
+import NetInfo from '@react-native-community/netinfo';
+import { OfflineCache } from './offlineCache';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ⚙️  CONFIG — เปลี่ยน LOCAL_IP ให้ตรงกับเครื่องคอมพิวเตอร์ของคุณ
@@ -12,8 +14,28 @@ import { AIScanResult } from '../types/scan.types';
 //
 //  ตัวอย่าง: 192.168.1.42
 // ─────────────────────────────────────────────────────────────────────────────
-const LOCAL_IP = '192.168.1.2'; // ← เปลี่ยนตรงนี้!
-export const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || `http://${LOCAL_IP}:3000/api/v1`;
+export const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || `http://${process.env.EXPO_PUBLIC_LOCAL_IP}:3000/api/v1`;
+
+// Network check utility
+export const checkNetwork = async (): Promise<{ connected: boolean; type: string }> => {
+  try {
+    const state = await NetInfo.fetch();
+    return {
+      connected: state.isConnected ?? false,
+      type: state.type || 'unknown',
+    };
+  } catch {
+    return { connected: false, type: 'unknown' };
+  }
+};
+
+// Network error class
+export class NetworkError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'NetworkError';
+  }
+}
 
 export const apiClient = axios.create({
     baseURL: API_BASE_URL,
@@ -90,8 +112,37 @@ export const apiService = {
 
     /**
      * ส่งรูปภาพไปให้ Backend วิเคราะห์ด้วย Gemini AI
+     * @param imageUri - URI ของรูปภาพ
+     * @param note - หมายเหตุเพิ่มเติม (optional)
+     * @param latitude - ละติจูด (optional)
+     * @param longitude - ลองจิจูด (optional)
+     * @param offlineMode - ถ้า true จะบันทึก cache เมื่อออฟไลน์
      */
-    analyzeImage: async (imageUri: string, note?: string, latitude?: number, longitude?: number): Promise<AnalyzeResponse> => {
+    analyzeImage: async (
+        imageUri: string, 
+        note?: string, 
+        latitude?: number, 
+        longitude?: number,
+        offlineMode: boolean = true
+    ): Promise<AnalyzeResponse | { cached: true; id: string }> => {
+        // Check network connectivity first
+        const network = await checkNetwork();
+        
+        if (!network.connected) {
+            // Offline mode - save to cache
+            if (offlineMode) {
+                const tempId = `temp_${Date.now()}`;
+                await OfflineCache.saveScan({
+                    id: tempId,
+                    imageUrl: '',
+                    imageUri,
+                    status: 'pending',
+                });
+                return { cached: true, id: tempId };
+            }
+            throw new NetworkError('ไม่มีการเชื่อมต่ออินเทอร์เน็ต กรุณาเปิด WiFi หรือข้อมูลมือถือ');
+        }
+
         const formData = new FormData();
         const filename = imageUri.split('/').pop() ?? 'photo.jpg';
         const ext = filename.split('.').pop()?.toLowerCase() ?? 'jpg';
@@ -117,25 +168,41 @@ export const apiService = {
         // Native fetch is highly recommended for FormData in React Native
         const { data: { session } } = await supabase.auth.getSession();
 
-        const response = await fetch(`${API_BASE_URL}/scans/analyze`, {
-            method: 'POST',
-            body: formData,
-            headers: {
-                ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {})
-            }
-        });
+        try {
+            const response = await fetch(`${API_BASE_URL}/scans/analyze`, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+                    'Content-Type': 'multipart/form-data',
+                },
+            });
 
-        if (!response.ok) {
-            let errResult;
-            try {
-                errResult = await response.json();
-            } catch {
-                throw new Error('การเชื่อมต่อผิดพลาด กรุณาลองใหม่อีกครั้ง');
+            if (!response.ok) {
+                let errResult;
+                try {
+                    errResult = await response.json();
+                } catch {
+                    throw new Error('การเชื่อมต่อผิดพลาด กรุณาลองใหม่อีกครั้ง');
+                }
+                throw new Error(errResult?.error || 'เกิดข้อผิดพลาดในการอัปโหลดรูปภาพ');
             }
-            throw new Error(errResult?.error || 'เกิดข้อผิดพลาดในการอัปโหลดรูปภาพ');
+
+            return await response.json();
+        } catch (error: any) {
+            // If network error and offline mode enabled, save to cache
+            if (offlineMode && (error.code === 'ECONNABORTED' || !network.connected)) {
+                const tempId = `temp_${Date.now()}`;
+                await OfflineCache.saveScan({
+                    id: tempId,
+                    imageUrl: '',
+                    imageUri,
+                    status: 'pending',
+                });
+                return { cached: true, id: tempId };
+            }
+            throw error;
         }
-
-        return await response.json();
     },
 
     /**

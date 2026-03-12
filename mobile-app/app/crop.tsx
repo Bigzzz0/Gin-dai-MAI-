@@ -18,7 +18,7 @@ import {
 import Animated, { useSharedValue, useAnimatedStyle } from 'react-native-reanimated';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Check, RotateCcw, SkipForward } from 'lucide-react-native';
+import { Check, RotateCcw, SkipForward, RotateCw } from 'lucide-react-native';
 import { BlurView } from 'expo-blur';
 
 const MIN_CROP = 80;
@@ -27,6 +27,9 @@ export default function CropScreen() {
     const router = useRouter();
     const { currentImageUri, setCurrentImageUri } = useStore();
     const insets = useSafeAreaInsets();
+
+    // Rotation state (0, 90, 180, 270)
+    const [rotation, setRotation] = useState(0);
 
     // Step 1: normalize the image (fix EXIF rotation) before showing anything
     const [normalizedUri, setNormalizedUri] = useState<string | null>(null);
@@ -145,36 +148,72 @@ export default function CropScreen() {
         if (!normalizedUri || imageNatural.w === 0 || containerSize.w === 0) return;
         setIsCropping(true);
         try {
-            const CW = containerSize.w;
-            const CH = containerSize.h;
-            const IW = imageNatural.w;
-            const IH = imageNatural.h;
+            let result;
+            
+            // First apply rotation if needed
+            if (rotation !== 0) {
+                const rotated = await ImageManipulator.manipulateAsync(
+                    normalizedUri,
+                    [{ rotate: rotation }],
+                    { compress: 1, format: ImageManipulator.SaveFormat.JPEG }
+                );
+                
+                // Then apply crop on rotated image
+                const CW = containerSize.w;
+                const CH = containerSize.h;
+                const IW = rotated.width;
+                const IH = rotated.height;
 
-            // cover mode: scale so the image fills the container completely
-            const scale = Math.max(CW / IW, CH / IH);
+                const scale = Math.max(CW / IW, CH / IH);
+                const renderedW = IW * scale;
+                const renderedH = IH * scale;
+                const offsetX = (renderedW - CW) / 2;
+                const offsetY = (renderedH - CH) / 2;
 
-            // Rendered size & centering offset
-            const renderedW = IW * scale;
-            const renderedH = IH * scale;
-            const offsetX = (renderedW - CW) / 2;
-            const offsetY = (renderedH - CH) / 2;
+                const originX = Math.round((boxX.value + offsetX) / scale);
+                const originY = Math.round((boxY.value + offsetY) / scale);
+                const cropW = Math.round(boxW.value / scale);
+                const cropH = Math.round(boxH.value / scale);
 
-            // Container-space → image-pixel-space
-            const originX = Math.round((boxX.value + offsetX) / scale);
-            const originY = Math.round((boxY.value + offsetY) / scale);
-            const cropW = Math.round(boxW.value / scale);
-            const cropH = Math.round(boxH.value / scale);
+                const safeOX = Math.max(0, Math.min(originX, IW - 1));
+                const safeOY = Math.max(0, Math.min(originY, IH - 1));
+                const safeW = Math.min(cropW, IW - safeOX);
+                const safeH = Math.min(cropH, IH - safeOY);
 
-            const safeOX = Math.max(0, Math.min(originX, IW - 1));
-            const safeOY = Math.max(0, Math.min(originY, IH - 1));
-            const safeW = Math.min(cropW, IW - safeOX);
-            const safeH = Math.min(cropH, IH - safeOY);
+                result = await ImageManipulator.manipulateAsync(
+                    rotated.uri,
+                    [{ crop: { originX: safeOX, originY: safeOY, width: safeW, height: safeH } }],
+                    { compress: 0.88, format: ImageManipulator.SaveFormat.JPEG }
+                );
+            } else {
+                // No rotation, just crop
+                const CW = containerSize.w;
+                const CH = containerSize.h;
+                const IW = imageNatural.w;
+                const IH = imageNatural.h;
 
-            const result = await ImageManipulator.manipulateAsync(
-                normalizedUri,
-                [{ crop: { originX: safeOX, originY: safeOY, width: safeW, height: safeH } }],
-                { compress: 0.88, format: ImageManipulator.SaveFormat.JPEG }
-            );
+                const scale = Math.max(CW / IW, CH / IH);
+                const renderedW = IW * scale;
+                const renderedH = IH * scale;
+                const offsetX = (renderedW - CW) / 2;
+                const offsetY = (renderedH - CH) / 2;
+
+                const originX = Math.round((boxX.value + offsetX) / scale);
+                const originY = Math.round((boxY.value + offsetY) / scale);
+                const cropW = Math.round(boxW.value / scale);
+                const cropH = Math.round(boxH.value / scale);
+
+                const safeOX = Math.max(0, Math.min(originX, IW - 1));
+                const safeOY = Math.max(0, Math.min(originY, IH - 1));
+                const safeW = Math.min(cropW, IW - safeOX);
+                const safeH = Math.min(cropH, IH - safeOY);
+
+                result = await ImageManipulator.manipulateAsync(
+                    normalizedUri,
+                    [{ crop: { originX: safeOX, originY: safeOY, width: safeW, height: safeH } }],
+                    { compress: 0.88, format: ImageManipulator.SaveFormat.JPEG }
+                );
+            }
 
             setCurrentImageUri(result.uri);
             router.back();
@@ -183,7 +222,23 @@ export default function CropScreen() {
         } finally {
             setIsCropping(false);
         }
-    }, [normalizedUri, imageNatural, containerSize, boxX, boxY, boxW, boxH, router, setCurrentImageUri]);
+    }, [normalizedUri, imageNatural, containerSize, boxX, boxY, boxW, boxH, rotation, router, setCurrentImageUri]);
+
+    // ── Rotation handlers ─────────────────────────────────────────────────────
+    const handleRotateLeft = () => {
+        setRotation(prev => {
+            const newRotation = (prev - 90) % 360;
+            return newRotation < 0 ? newRotation + 360 : newRotation;
+        });
+    };
+
+    const handleRotateRight = () => {
+        setRotation(prev => (prev + 90) % 360);
+    };
+
+    const handleResetRotation = () => {
+        setRotation(0);
+    };
 
     // ── Render ────────────────────────────────────────────────────────────────
     if (preparing) {
@@ -252,6 +307,33 @@ export default function CropScreen() {
                     <Text style={styles.hintText}>Drag to move  •  Pull corners to resize</Text>
                 </View>
 
+                {/* Rotation controls */}
+                <View style={styles.rotationControls} pointerEvents="box-none">
+                    <TouchableOpacity
+                        style={styles.rotationButton}
+                        onPress={handleRotateLeft}
+                        activeOpacity={0.8}
+                    >
+                        <RotateCcw color="#fff" size={20} />
+                    </TouchableOpacity>
+                    {rotation !== 0 && (
+                        <TouchableOpacity
+                            style={styles.rotationResetButton}
+                            onPress={handleResetRotation}
+                            activeOpacity={0.8}
+                        >
+                            <Text style={styles.rotationResetText}>0°</Text>
+                        </TouchableOpacity>
+                    )}
+                    <TouchableOpacity
+                        style={styles.rotationButton}
+                        onPress={handleRotateRight}
+                        activeOpacity={0.8}
+                    >
+                        <RotateCw color="#fff" size={20} />
+                    </TouchableOpacity>
+                </View>
+
                 {/* Bottom buttons */}
                 <View style={[styles.bottomBar, { paddingBottom: Math.max(insets.bottom + 8, 28) }]}>
                     {isCropping ? (
@@ -318,6 +400,39 @@ const styles = StyleSheet.create({
         color: 'rgba(255,255,255,0.8)', fontSize: 13, fontWeight: '500',
         backgroundColor: 'rgba(0,0,0,0.5)', paddingHorizontal: 14, paddingVertical: 6,
         borderRadius: 20, overflow: 'hidden',
+    },
+
+    // Rotation controls
+    rotationControls: {
+        position: 'absolute',
+        top: 60,
+        right: 16,
+        flexDirection: 'column',
+        gap: 8,
+        alignItems: 'center',
+    },
+    rotationButton: {
+        width: 44,
+        height: 44,
+        borderRadius: 22,
+        backgroundColor: 'rgba(0,0,0,0.6)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.3)',
+    },
+    rotationResetButton: {
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        backgroundColor: '#10b981',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    rotationResetText: {
+        color: '#fff',
+        fontSize: 11,
+        fontWeight: '700',
     },
 
     bottomBar: { position: 'absolute', bottom: 0, left: 0, right: 0, paddingHorizontal: 24 },

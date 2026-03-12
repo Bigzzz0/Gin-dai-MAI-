@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -13,29 +10,29 @@ datasource db {
 
 model User {
   id             String         @id @default(uuid())
-  supabaseAuthId String         @unique // Links to Supabase auth.users
+  supabaseAuthId String         @unique
   email          String         @unique
   name           String?
-  scans          ScanHistory[]
-  feedbacks      ScanFeedback[]
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
+  feedbacks      ScanFeedback[]
+  scans          ScanHistory[]
 }
 
 model ScanHistory {
   id             String         @id @default(uuid())
   userId         String
-  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  imageUrl       String         // Supabase Storage URL
-  foodType       String         // e.g., เนื้อหมู, ปลาหมึก
-  safetyLevel    String         // SAFE, SUSPICIOUS, DANGEROUS
-  aiConfidence   Float          // 0.0 - 1.0
-  aiResponseJson Json           // Full AI JSON response with boundingBoxes, analysisDetail
-  userNote       String?        // Optional note from user before analysis
-  latitude       Float?         // Location where scan was taken
-  longitude      Float?         // Location where scan was taken
-  feedbacks      ScanFeedback[]
+  imageUrl       String
+  foodType       String
+  safetyLevel    String
+  aiConfidence   Float
+  aiResponseJson Json
   createdAt      DateTime       @default(now())
+  userNote       String?
+  latitude       Float?
+  longitude      Float?
+  feedbacks      ScanFeedback[]
+  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, createdAt(sort: Desc)])
 }
@@ -43,12 +40,13 @@ model ScanHistory {
 model ScanFeedback {
   id        String      @id @default(uuid())
   scanId    String
-  scan      ScanHistory @relation(fields: [scanId], references: [id], onDelete: Cascade)
   userId    String
-  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  issueType String      // WRONG_FOOD_TYPE | WRONG_SAFETY_LEVEL | NOT_FOOD | OTHER
-  comment   String?     // Optional additional comment (max 500 chars)
+  issueType String
+  comment   String?
+  rating    Int?        // Rating 1-100 (from 1-5 star scale)
   createdAt DateTime    @default(now())
+  scan      ScanHistory @relation(fields: [scanId], references: [id], onDelete: Cascade)
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([scanId])
   @@index([userId])

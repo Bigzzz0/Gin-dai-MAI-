@@ -1,14 +1,14 @@
 import {
     View, Text, StyleSheet, FlatList,
-    TouchableOpacity, Image, RefreshControl, Platform, Alert
+    TouchableOpacity, Image, RefreshControl, Platform, Alert, TextInput, Modal, ScrollView
 } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useStore } from '../../src/store/useStore';
 import { SAFETY_CONFIG } from '../../src/types/scan.types';
-import { useCallback, useState } from 'react';
+import { useCallback, useState, useMemo } from 'react';
 import { apiService } from '../../src/services/api';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Camera, Clock, Info, ShieldAlert, ShieldCheck, ShieldQuestion, Trash2 } from 'lucide-react-native';
+import { Camera, Clock, Info, ShieldAlert, ShieldCheck, ShieldQuestion, Trash2, Search, Filter, SortAsc, X, Check } from 'lucide-react-native';
 import Animated, { FadeIn, Layout } from 'react-native-reanimated';
 
 const getSafetyIcon = (level: string) => {
@@ -17,10 +17,20 @@ const getSafetyIcon = (level: string) => {
    return <ShieldAlert color="#ef4444" size={16} />;
 };
 
+type SortOption = 'newest' | 'oldest' | 'highest-confidence' | 'lowest-confidence';
+type FilterOption = 'all' | 'SAFE' | 'SUSPICIOUS' | 'DANGEROUS';
+
 export default function HistoryScreen() {
     const router = useRouter();
     const { scanHistory, setScanHistory, setScanResult } = useStore();
     const [loading, setLoading] = useState(false);
+    
+    // Search, Filter, Sort state
+    const [searchQuery, setSearchQuery] = useState('');
+    const [isSearchActive, setIsSearchActive] = useState(false);
+    const [filterOption, setFilterOption] = useState<FilterOption>('all');
+    const [sortOption, setSortOption] = useState<SortOption>('newest');
+    const [showFilterModal, setShowFilterModal] = useState(false);
 
     const fetchHistory = useCallback(async () => {
         setLoading(true);
@@ -103,6 +113,68 @@ export default function HistoryScreen() {
         );
     };
 
+    const handleResetFilters = () => {
+        setSearchQuery('');
+        setFilterOption('all');
+        setSortOption('newest');
+        setIsSearchActive(false);
+    };
+
+    // Filtered and sorted history
+    const filteredAndSortedHistory = useMemo(() => {
+        let result = [...scanHistory];
+
+        // Apply search filter
+        if (searchQuery.trim()) {
+            const query = searchQuery.toLowerCase();
+            result = result.filter(item => 
+                item.foodType?.toLowerCase().includes(query) ||
+                item.analysisDetail?.toLowerCase().includes(query)
+            );
+        }
+
+        // Apply safety level filter
+        if (filterOption !== 'all') {
+            result = result.filter(item => item.safetyLevel === filterOption);
+        }
+
+        // Apply sorting
+        result.sort((a, b) => {
+            switch (sortOption) {
+                case 'newest':
+                    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+                case 'oldest':
+                    return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+                case 'highest-confidence':
+                    return b.confidence - a.confidence;
+                case 'lowest-confidence':
+                    return a.confidence - b.confidence;
+                default:
+                    return 0;
+            }
+        });
+
+        return result;
+    }, [scanHistory, searchQuery, filterOption, sortOption]);
+
+    const getSortLabel = (option: SortOption) => {
+        switch (option) {
+            case 'newest': return 'ใหม่ที่สุด';
+            case 'oldest': return 'เก่าที่สุด';
+            case 'highest-confidence': return 'ความมั่นใจสูง';
+            case 'lowest-confidence': return 'ความมั่นใจต่ำ';
+        }
+    };
+
+    const getFilterLabel = (option: FilterOption) => {
+        switch (option) {
+            case 'all': return 'ทั้งหมด';
+            case 'SAFE': return 'ปลอดภัย';
+            case 'SUSPICIOUS': return 'น่าสงสัย';
+            case 'DANGEROUS': return 'อันตราย';
+        }
+    };
+
     if (scanHistory.length === 0 && !loading) {
         return (
             <View style={styles.mainContainer}>
@@ -158,11 +230,109 @@ export default function HistoryScreen() {
              <View style={styles.container}>
                 <View style={styles.headerContainer}>
                    <Text style={styles.headerTitle}>ประวัติการสแกน</Text>
-                   <Text style={styles.headerSubtitle}>บันทึกแล้ว {scanHistory.length} รายการ</Text>
+                   <Text style={styles.headerSubtitle}>
+                        บันทึกแล้ว {scanHistory.length} รายการ
+                        {filteredAndSortedHistory.length !== scanHistory.length && 
+                            ` (แสดง ${filteredAndSortedHistory.length})`
+                        }
+                   </Text>
+                </View>
+
+                {/* Search Bar */}
+                <View style={styles.searchContainer}>
+                    {isSearchActive ? (
+                        <View style={styles.searchBarActive}>
+                            <Search color="#64748b" size={20} style={{ marginLeft: 12 }} />
+                            <TextInput
+                                style={styles.searchInput}
+                                placeholder="ค้นหาอาหาร, รายละเอียด..."
+                                placeholderTextColor="#94a3b8"
+                                value={searchQuery}
+                                onChangeText={setSearchQuery}
+                                autoFocus
+                            />
+                            <TouchableOpacity
+                                style={styles.clearButton}
+                                onPress={() => setSearchQuery('')}
+                            >
+                                <X color="#94a3b8" size={18} />
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={styles.cancelButton}
+                                onPress={() => {
+                                    setIsSearchActive(false);
+                                    setSearchQuery('');
+                                }}
+                            >
+                                <Text style={styles.cancelButtonText}>ยกเลิก</Text>
+                            </TouchableOpacity>
+                        </View>
+                    ) : (
+                        <TouchableOpacity
+                            style={styles.searchBar}
+                            onPress={() => setIsSearchActive(true)}
+                            activeOpacity={0.7}
+                        >
+                            <Search color="#94a3b8" size={20} />
+                            <Text style={styles.searchPlaceholder}>ค้นหาประวัติการสแกน...</Text>
+                        </TouchableOpacity>
+                    )}
+                </View>
+
+                {/* Filter and Sort Controls */}
+                {(searchQuery || filterOption !== 'all' || sortOption !== 'newest') && (
+                    <View style={styles.filterBar}>
+                        <View style={styles.filterChips}>
+                            {filterOption !== 'all' && (
+                                <View style={styles.chip}>
+                                    <Text style={styles.chipText}>ระดับ: {getFilterLabel(filterOption)}</Text>
+                                    <TouchableOpacity onPress={() => setFilterOption('all')}>
+                                        <X color="#64748b" size={14} />
+                                    </TouchableOpacity>
+                                </View>
+                            )}
+                            {sortOption !== 'newest' && (
+                                <View style={styles.chip}>
+                                    <Text style={styles.chipText}>เรียง: {getSortLabel(sortOption)}</Text>
+                                    <TouchableOpacity onPress={() => setSortOption('newest')}>
+                                        <X color="#64748b" size={14} />
+                                    </TouchableOpacity>
+                                </View>
+                            )}
+                        </View>
+                        <TouchableOpacity onPress={handleResetFilters} style={styles.resetButton}>
+                            <Text style={styles.resetText}>ล้างทั้งหมด</Text>
+                        </TouchableOpacity>
+                    </View>
+                )}
+
+                {/* Filter/Sort Buttons */}
+                <View style={styles.filterButtons}>
+                    <TouchableOpacity
+                        style={[styles.filterButton, filterOption !== 'all' && styles.filterButtonActive]}
+                        onPress={() => setShowFilterModal(true)}
+                        activeOpacity={0.7}
+                    >
+                        <Filter color={filterOption !== 'all' ? '#10b981' : '#64748b'} size={18} />
+                        <Text style={[
+                            styles.filterButtonText,
+                            filterOption !== 'all' && styles.filterButtonTextActive
+                        ]}>
+                            กรอง
+                        </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        style={styles.sortButton}
+                        onPress={() => setSortOption(sortOption === 'newest' ? 'oldest' : sortOption === 'oldest' ? 'highest-confidence' : sortOption === 'highest-confidence' ? 'lowest-confidence' : 'newest')}
+                        activeOpacity={0.7}
+                    >
+                        <SortAsc color="#64748b" size={18} />
+                        <Text style={styles.sortButtonText}>{getSortLabel(sortOption)}</Text>
+                    </TouchableOpacity>
                 </View>
 
                 <FlatList
-                    data={scanHistory}
+                    data={filteredAndSortedHistory}
                     keyExtractor={(item) => item.id}
                     contentContainerStyle={styles.listContainer}
                     showsVerticalScrollIndicator={false}
@@ -296,6 +466,127 @@ export default function HistoryScreen() {
                         );
                     }}
                 />
+
+                {/* Filter Modal */}
+                <Modal
+                    visible={showFilterModal}
+                    transparent
+                    animationType="slide"
+                    onRequestClose={() => setShowFilterModal(false)}
+                >
+                    <View style={styles.modalOverlay}>
+                        <View style={styles.modalContainer}>
+                            <View style={styles.modalHandle} />
+                            
+                            <View style={styles.modalHeader}>
+                                <Text style={styles.modalTitle}>กรองตามระดับความปลอดภัย</Text>
+                                <TouchableOpacity onPress={() => setShowFilterModal(false)}>
+                                    <X color="#94a3b8" size={24} />
+                                </TouchableOpacity>
+                            </View>
+
+                            <View style={styles.filterOptions}>
+                                <TouchableOpacity
+                                    style={[
+                                        styles.filterOption,
+                                        filterOption === 'all' && styles.filterOptionActive,
+                                        filterOption === 'all' && { borderColor: '#10b981' }
+                                    ]}
+                                    onPress={() => {
+                                        setFilterOption('all');
+                                        setShowFilterModal(false);
+                                    }}
+                                >
+                                    <Text style={[
+                                        styles.filterOptionText,
+                                        filterOption === 'all' && styles.filterOptionTextActive
+                                    ]}>
+                                        ทั้งหมด
+                                    </Text>
+                                    {filterOption === 'all' && (
+                                        <Check color="#10b981" size={20} />
+                                    )}
+                                </TouchableOpacity>
+
+                                <TouchableOpacity
+                                    style={[
+                                        styles.filterOption,
+                                        filterOption === 'SAFE' && styles.filterOptionActive,
+                                        filterOption === 'SAFE' && { borderColor: '#10b981' }
+                                    ]}
+                                    onPress={() => {
+                                        setFilterOption('SAFE');
+                                        setShowFilterModal(false);
+                                    }}
+                                >
+                                    <ShieldCheck color="#10b981" size={20} />
+                                    <Text style={[
+                                        styles.filterOptionText,
+                                        filterOption === 'SAFE' && styles.filterOptionTextActive
+                                    ]}>
+                                        ปลอดภัย
+                                    </Text>
+                                    {filterOption === 'SAFE' && (
+                                        <Check color="#10b981" size={20} />
+                                    )}
+                                </TouchableOpacity>
+
+                                <TouchableOpacity
+                                    style={[
+                                        styles.filterOption,
+                                        filterOption === 'SUSPICIOUS' && styles.filterOptionActive,
+                                        filterOption === 'SUSPICIOUS' && { borderColor: '#f59e0b' }
+                                    ]}
+                                    onPress={() => {
+                                        setFilterOption('SUSPICIOUS');
+                                        setShowFilterModal(false);
+                                    }}
+                                >
+                                    <ShieldQuestion color="#f59e0b" size={20} />
+                                    <Text style={[
+                                        styles.filterOptionText,
+                                        filterOption === 'SUSPICIOUS' && styles.filterOptionTextActive
+                                    ]}>
+                                        น่าสงสัย
+                                    </Text>
+                                    {filterOption === 'SUSPICIOUS' && (
+                                        <Check color="#f59e0b" size={20} />
+                                    )}
+                                </TouchableOpacity>
+
+                                <TouchableOpacity
+                                    style={[
+                                        styles.filterOption,
+                                        filterOption === 'DANGEROUS' && styles.filterOptionActive,
+                                        filterOption === 'DANGEROUS' && { borderColor: '#ef4444' }
+                                    ]}
+                                    onPress={() => {
+                                        setFilterOption('DANGEROUS');
+                                        setShowFilterModal(false);
+                                    }}
+                                >
+                                    <ShieldAlert color="#ef4444" size={20} />
+                                    <Text style={[
+                                        styles.filterOptionText,
+                                        filterOption === 'DANGEROUS' && styles.filterOptionTextActive
+                                    ]}>
+                                        อันตราย
+                                    </Text>
+                                    {filterOption === 'DANGEROUS' && (
+                                        <Check color="#ef4444" size={20} />
+                                    )}
+                                </TouchableOpacity>
+                            </View>
+
+                            <TouchableOpacity
+                                style={styles.modalCloseButton}
+                                onPress={() => setShowFilterModal(false)}
+                            >
+                                <Text style={styles.modalCloseButtonText}>ปิด</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </Modal>
             </View>
         </View>
     );
@@ -512,5 +803,225 @@ const styles = StyleSheet.create({
         fontFamily: 'Kanit_400Regular',
         fontSize: 13,
         color: '#94a3b8',
+    },
+
+    // Search
+    searchContainer: {
+        paddingHorizontal: 20,
+        marginBottom: 16,
+    },
+    searchBar: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#ffffff',
+        borderRadius: 16,
+        paddingHorizontal: 16,
+        paddingVertical: 14,
+        borderWidth: 1,
+        borderColor: '#e2e8f0',
+        gap: 12,
+    },
+    searchBarActive: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#ffffff',
+        borderRadius: 16,
+        borderWidth: 2,
+        borderColor: '#10b981',
+        overflow: 'hidden',
+    },
+    searchPlaceholder: {
+        fontFamily: 'Kanit_400Regular',
+        fontSize: 16,
+        color: '#94a3b8',
+        flex: 1,
+    },
+    searchInput: {
+        flex: 1,
+        fontFamily: 'Kanit_400Regular',
+        fontSize: 16,
+        color: '#0f172a',
+        paddingVertical: 14,
+    },
+    clearButton: {
+        padding: 8,
+    },
+    cancelButton: {
+        paddingHorizontal: 16,
+        paddingVertical: 14,
+        backgroundColor: '#f1f5f9',
+        borderTopRightRadius: 14,
+        borderBottomRightRadius: 14,
+    },
+    cancelButtonText: {
+        fontFamily: 'Kanit_600SemiBold',
+        fontSize: 14,
+        color: '#64748b',
+    },
+
+    // Filter Bar
+    filterBar: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingHorizontal: 20,
+        marginBottom: 12,
+    },
+    filterChips: {
+        flexDirection: 'row',
+        gap: 8,
+        flex: 1,
+    },
+    chip: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#e0f2fe',
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 20,
+        gap: 6,
+    },
+    chipText: {
+        fontFamily: 'Kanit_400Regular',
+        fontSize: 13,
+        color: '#0369a1',
+    },
+    resetButton: {
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+    },
+    resetText: {
+        fontFamily: 'Kanit_600SemiBold',
+        fontSize: 13,
+        color: '#64748b',
+    },
+
+    // Filter Buttons
+    filterButtons: {
+        flexDirection: 'row',
+        paddingHorizontal: 20,
+        marginBottom: 16,
+        gap: 12,
+    },
+    filterButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#ffffff',
+        paddingHorizontal: 16,
+        paddingVertical: 10,
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: '#e2e8f0',
+        gap: 8,
+    },
+    filterButtonActive: {
+        borderColor: '#10b981',
+        backgroundColor: '#f0fdf4',
+    },
+    filterButtonText: {
+        fontFamily: 'Kanit_600SemiBold',
+        fontSize: 14,
+        color: '#64748b',
+    },
+    filterButtonTextActive: {
+        color: '#10b981',
+    },
+    sortButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#ffffff',
+        paddingHorizontal: 16,
+        paddingVertical: 10,
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: '#e2e8f0',
+        gap: 8,
+        flex: 1,
+        justifyContent: 'center',
+    },
+    sortButtonText: {
+        fontFamily: 'Kanit_600SemiBold',
+        fontSize: 14,
+        color: '#0f172a',
+    },
+
+    // Modal
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        justifyContent: 'flex-end',
+    },
+    modalContainer: {
+        backgroundColor: '#ffffff',
+        borderTopLeftRadius: 24,
+        borderTopRightRadius: 24,
+        paddingBottom: Platform.OS === 'ios' ? 34 : 20,
+    },
+    modalHandle: {
+        width: 40,
+        height: 4,
+        backgroundColor: '#cbd5e1',
+        borderRadius: 2,
+        alignSelf: 'center',
+        marginTop: 12,
+        marginBottom: 16,
+    },
+    modalHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingHorizontal: 20,
+        marginBottom: 20,
+    },
+    modalTitle: {
+        fontFamily: 'Kanit_700Bold',
+        fontSize: 20,
+        color: '#0f172a',
+    },
+    filterOptions: {
+        paddingHorizontal: 20,
+        gap: 12,
+        marginBottom: 24,
+    },
+    filterOption: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        backgroundColor: '#f8fafc',
+        paddingHorizontal: 16,
+        paddingVertical: 16,
+        borderRadius: 16,
+        borderWidth: 2,
+        borderColor: 'transparent',
+    },
+    filterOptionActive: {
+        backgroundColor: '#ffffff',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 2,
+    },
+    filterOptionText: {
+        fontFamily: 'Kanit_600SemiBold',
+        fontSize: 16,
+        color: '#64748b',
+        flex: 1,
+        marginLeft: 12,
+    },
+    filterOptionTextActive: {
+        color: '#0f172a',
+    },
+    modalCloseButton: {
+        marginHorizontal: 20,
+        backgroundColor: '#f1f5f9',
+        paddingVertical: 14,
+        borderRadius: 16,
+        alignItems: 'center',
+    },
+    modalCloseButtonText: {
+        fontFamily: 'Kanit_700Bold',
+        fontSize: 16,
+        color: '#0f172a',
     },
 });

@@ -9,7 +9,7 @@ import { useStore } from '../src/store/useStore';
 import { apiService } from '../src/services/api';
 import { SAFETY_CONFIG } from '../src/types/scan.types';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Share2, Check, AlertTriangle, ShieldCheck, ShieldAlert, ShieldQuestion, Info, ScanSearch, Flag, X, Lightbulb } from 'lucide-react-native';
+import { Share2, Check, AlertTriangle, ShieldCheck, ShieldAlert, ShieldQuestion, Info, ScanSearch, Flag, X, Lightbulb, Star } from 'lucide-react-native';
 import Animated, { FadeInUp, FadeInDown, useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
 import { useEffect, useState, useRef } from 'react';
 import ViewShot from 'react-native-view-shot';
@@ -64,6 +64,8 @@ export default function ResultScreen() {
     const [feedbackComment, setFeedbackComment] = useState('');
     const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
     const [feedbackDone, setFeedbackDone] = useState(false);
+    const [rating, setRating] = useState<number>(0);
+    const [hoverRating, setHoverRating] = useState<number>(0);
 
     // Full-screen image viewer modal
     const [imageFullScreen, setImageFullScreen] = useState(false);
@@ -184,6 +186,8 @@ export default function ResultScreen() {
     const handleOpenFeedback = () => {
         setSelectedIssue(null);
         setFeedbackComment('');
+        setRating(0);
+        setHoverRating(0);
         setFeedbackDone(false);
         setFeedbackVisible(true);
     };
@@ -200,7 +204,18 @@ export default function ResultScreen() {
 
         setIsSubmittingFeedback(true);
         try {
-            await apiService.submitFeedback(lastScanId, selectedIssue, feedbackComment || undefined);
+            // Submit feedback with rating
+            const feedbackData: any = {
+                issueType: selectedIssue,
+                comment: feedbackComment || undefined,
+            };
+            
+            // Include rating if provided (1-5 scale, convert to 1-100 for backend)
+            if (rating > 0) {
+                feedbackData.rating = rating * 20; // Convert 1-5 to 1-100
+            }
+            
+            await apiService.submitFeedback(lastScanId, feedbackData.issueType, feedbackData.comment);
             setFeedbackDone(true);
         } catch (err: any) {
             Alert.alert('เกิดข้อผิดพลาด', err.message ?? 'ไม่สามารถส่ง feedback ได้ กรุณาลองใหม่');
@@ -527,7 +542,40 @@ export default function ResultScreen() {
                                     เลือกประเภทความผิดพลาดที่พบ เพื่อช่วยปรับปรุง AI
                                 </Text>
 
+                                {/* Star Rating */}
+                                <View style={styles.ratingContainer}>
+                                    <Text style={styles.ratingLabel}>ให้คะแนนความพึงพอใจ</Text>
+                                    <View style={styles.starsContainer}>
+                                        {[1, 2, 3, 4, 5].map((star) => (
+                                            <TouchableOpacity
+                                                key={star}
+                                                onPress={() => setRating(star)}
+                                                onPressIn={() => setHoverRating(star)}
+                                                onPressOut={() => setHoverRating(0)}
+                                                activeOpacity={0.7}
+                                                style={styles.starButton}
+                                            >
+                                                <Star
+                                                    color={star <= (hoverRating || rating) ? '#fbbf24' : '#cbd5e1'}
+                                                    size={40}
+                                                    fill={star <= (hoverRating || rating) ? '#fbbf24' : 'none'}
+                                                />
+                                            </TouchableOpacity>
+                                        ))}
+                                    </View>
+                                    {rating > 0 && (
+                                        <Text style={styles.ratingValue}>
+                                            {rating === 1 && 'ไม่พอใจมาก'}
+                                            {rating === 2 && 'ไม่พอใจ'}
+                                            {rating === 3 && 'ปานกลาง'}
+                                            {rating === 4 && 'พอใจ'}
+                                            {rating === 5 && 'พอใจมาก'}
+                                        </Text>
+                                    )}
+                                </View>
+
                                 {/* Issue Type Selection */}
+                                <Text style={styles.feedbackSectionTitle}>ประเภทความผิดพลาด</Text>
                                 <View style={styles.issueGrid}>
                                     {ISSUE_OPTIONS.map((opt) => (
                                         <TouchableOpacity
@@ -883,6 +931,36 @@ const styles = StyleSheet.create({
         fontSize: 13,
         color: '#64748b',
         lineHeight: 20,
+    },
+    // Rating styles
+    ratingContainer: {
+        alignItems: 'center',
+        paddingVertical: 12,
+    },
+    ratingLabel: {
+        fontFamily: 'Kanit_600SemiBold',
+        fontSize: 15,
+        color: '#0f172a',
+        marginBottom: 12,
+    },
+    starsContainer: {
+        flexDirection: 'row',
+        gap: 8,
+    },
+    starButton: {
+        padding: 4,
+    },
+    ratingValue: {
+        fontFamily: 'Kanit_400Regular',
+        fontSize: 14,
+        color: '#64748b',
+        marginTop: 8,
+    },
+    feedbackSectionTitle: {
+        fontFamily: 'Kanit_600SemiBold',
+        fontSize: 14,
+        color: '#0f172a',
+        marginBottom: 8,
     },
     issueGrid: {
         flexDirection: 'row',

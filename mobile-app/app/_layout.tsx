@@ -9,6 +9,7 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useFonts } from 'expo-font';
 import { Kanit_400Regular, Kanit_700Bold } from '@expo-google-fonts/kanit';
 import * as SplashScreen from 'expo-splash-screen';
+import { NotificationProvider } from '../src/context/NotificationContext';
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
@@ -66,19 +67,22 @@ export default function RootLayout() {
   }
 
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="camera" options={{ headerShown: false }} />
-        <Stack.Screen name="preview" options={{ title: 'Preview' }} />
-        <Stack.Screen name="result" options={{ headerShown: false }} />
-        <Stack.Screen name="auth" options={{ headerShown: false }} />
-        <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
-        <Stack.Screen name="disclaimer" options={{ title: 'ข้อความปฏิเสธความรับผิดชอบ', headerBackTitle: 'กลับ' }} />
-        <Stack.Screen name="anomaly-detail" options={{ title: 'รายละเอียดความผิดปกติ', headerBackTitle: 'กลับ' }} />
-        <Stack.Screen name="profile" options={{ title: 'โปรไฟล์', headerBackTitle: 'กลับ' }} />
-      </Stack>
-      <StatusBar style="auto" />
-    </ThemeProvider>
+    <NotificationProvider>
+      <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+        <Stack>
+          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          <Stack.Screen name="camera" options={{ headerShown: false }} />
+          <Stack.Screen name="preview" options={{ title: 'Preview' }} />
+          <Stack.Screen name="result" options={{ headerShown: false }} />
+          <Stack.Screen name="auth" options={{ headerShown: false }} />
+          <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
+          <Stack.Screen name="disclaimer" options={{ title: 'ข้อความปฏิเสธความรับผิดชอบ', headerBackTitle: 'กลับ' }} />
+          <Stack.Screen name="anomaly-detail" options={{ title: 'รายละเอียดความผิดปกติ', headerBackTitle: 'กลับ' }} />
+          <Stack.Screen name="profile" options={{ title: 'โปรไฟล์', headerBackTitle: 'กลับ' }} />
+          <Stack.Screen name="privacy" options={{ title: 'นโยบายความเป็นส่วนตัว', headerBackTitle: 'กลับ' }} />
+        </Stack>
+        <StatusBar style="auto" />
+      </ThemeProvider>
+    </NotificationProvider>
   );
 }

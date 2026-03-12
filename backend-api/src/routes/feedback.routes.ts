@@ -15,7 +15,7 @@ export async function feedbackRoutes(fastify: FastifyInstance) {
     /**
      * POST /scans/:scanId/feedback
      * Report an incorrect AI result for a given scan.
-     * Body: { issueType: string, comment?: string }
+     * Body: { issueType: string, comment?: string, rating?: number }
      */
     fastify.post("/:scanId/feedback", {
         preHandler: [verifyAuth],
@@ -23,9 +23,10 @@ export async function feedbackRoutes(fastify: FastifyInstance) {
 
         const supabaseUser = (request as any).supabaseUser;
         const { scanId } = request.params as { scanId: string };
-        const { issueType, comment } = request.body as {
+        const { issueType, comment, rating } = request.body as {
             issueType: string;
             comment?: string;
+            rating?: number;
         };
 
         // Validate issueType
@@ -39,6 +40,13 @@ export async function feedbackRoutes(fastify: FastifyInstance) {
         if (comment && comment.length > 500) {
             return reply.status(400).send({
                 error: "comment must be 500 characters or less",
+            });
+        }
+
+        // Validate rating (1-100 scale)
+        if (rating !== undefined && (rating < 1 || rating > 100)) {
+            return reply.status(400).send({
+                error: "rating must be between 1 and 100",
             });
         }
 
@@ -70,6 +78,7 @@ export async function feedbackRoutes(fastify: FastifyInstance) {
                     userId: user.id,
                     issueType: issueType as IssueType,
                     comment: comment?.trim() ?? null,
+                    rating: rating ?? null,
                 },
             });
 

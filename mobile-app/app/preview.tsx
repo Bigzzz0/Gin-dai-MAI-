@@ -6,15 +6,17 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useStore } from '../src/store/useStore';
-import { apiService } from '../src/services/api';
+import { apiService, checkNetwork, NetworkError } from '../src/services/api';
 import { useState, useEffect } from 'react';
 import { BlurView } from 'expo-blur';
-import { ScanSearch, Undo2, Ban, PenLine, X, CheckCircle, Crop, MapPin, ShieldAlert, Check } from 'lucide-react-native';
+import { ScanSearch, Undo2, Ban, PenLine, X, CheckCircle, Crop, MapPin, ShieldAlert, Check, WifiOff } from 'lucide-react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withRepeat, withTiming, Easing, withSequence } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { getCurrentLocation } from '../src/hooks/useLocation';
 import { useDisclaimer } from '../src/hooks/useDisclaimer';
+import { useNetwork } from '../src/hooks/useNetwork';
+import { NetworkError as NetworkErrorComponent } from '../src/components/NetworkError';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -31,8 +33,10 @@ export default function PreviewScreen() {
     const insets = useSafeAreaInsets();
     const { currentImageUri, setScanResult, addScanToHistory } = useStore();
     const { hasAccepted, acceptDisclaimer } = useDisclaimer();
+    const network = useNetwork();
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [loadingMsg, setLoadingMsg] = useState(LOADING_MESSAGES[0]);
+    const [showNetworkError, setShowNetworkError] = useState(false);
 
     // Note/remark state
     const [userNote, setUserNote] = useState('');
@@ -52,6 +56,15 @@ export default function PreviewScreen() {
             transform: [{ translateY: scanLinePosition.value }],
         };
     });
+
+    // Show network error if not connected
+    useEffect(() => {
+        if (!network.isConnected && !isAnalyzing) {
+            setShowNetworkError(true);
+        } else {
+            setShowNetworkError(false);
+        }
+    }, [network.isConnected, isAnalyzing]);
 
     useEffect(() => {
         let msgInterval: ReturnType<typeof setInterval>;
@@ -109,6 +122,28 @@ export default function PreviewScreen() {
             return;
         }
 
+        // Check network and show warning if offline but still allow analysis
+        const networkStatus = await checkNetwork();
+        if (!networkStatus.connected) {
+            Alert.alert(
+                'ไม่มีการเชื่อมต่ออินเทอร์เน็ต',
+                'การวิเคราะห์จะไม่ทำงานในโหมดออฟไลน์ รูปภาพจะถูกบันทึกและจะวิเคราะห์เมื่อมีการเชื่อมต่ออีกครั้ง\n\n' +
+                'เครือข่ายปัจจุบัน: ' + networkStatus.type,
+                [
+                    { text: 'ยกเลิก', style: 'cancel' },
+                    { 
+                        text: 'บันทึกไว้ก่อน', 
+                        onPress: () => {
+                            // Save to offline cache
+                            router.back();
+                            Alert.alert('บันทึกแล้ว', 'รูปภาพจะถูกวิเคราะห์เมื่อมีการเชื่อมต่ออินเทอร์เน็ต');
+                        }
+                    }
+                ]
+            );
+            return;
+        }
+
         setIsAnalyzing(true);
 
         try {
@@ -128,6 +163,16 @@ export default function PreviewScreen() {
                 location.latitude || undefined,
                 location.longitude || undefined
             );
+
+            // Check if response is cached (offline mode)
+            if ('cached' in response) {
+                Alert.alert(
+                    'บันทึกแล้ว',
+                    'ไม่มีการเชื่อมต่ออินเทอร์เน็ต รูปภาพของคุณถูกบันทึกแล้วและจะวิเคราะห์เมื่อมีการเชื่อมต่ออีกครั้ง',
+                    [{ text: 'ตกลง', onPress: () => router.back() }]
+                );
+                return;
+            }
 
             setScanResult(response.result, response.scanId, response.imageUrl);
 

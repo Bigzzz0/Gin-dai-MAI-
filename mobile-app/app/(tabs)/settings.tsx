@@ -26,9 +26,11 @@ import {
 } from 'lucide-react-native';
 import { supabase } from '../../src/lib/supabase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useNotification } from '../../src/context/NotificationContext';
 
 export default function SettingsScreen() {
     const router = useRouter();
+    const { showNotification } = useNotification();
     const [notificationsEnabled, setNotificationsEnabled] = useState(true);
     const [saveLocation, setSaveLocation] = useState(false);
     const [highQualityImages, setHighQualityImages] = useState(false);
@@ -74,11 +76,19 @@ export default function SettingsScreen() {
         saveSetting('notifications_enabled', value);
         
         if (value) {
-            Alert.alert(
-                'เปิดการแจ้งเตือน',
-                'คุณจะได้รับแจ้งเตือนเมื่อการวิเคราะห์เสร็จสิ้น',
-                [{ text: 'ตกลง' }]
-            );
+            showNotification({
+                type: 'success',
+                title: 'เปิดการแจ้งเตือน',
+                message: 'คุณจะได้รับแจ้งเตือนเมื่อการวิเคราะห์เสร็จสิ้น',
+                duration: 3000,
+            });
+        } else {
+            showNotification({
+                type: 'info',
+                title: 'ปิดการแจ้งเตือน',
+                message: 'การแจ้งเตือนถูกปิดแล้ว',
+                duration: 3000,
+            });
         }
     };
 
@@ -87,11 +97,19 @@ export default function SettingsScreen() {
         saveSetting('save_location', value);
         
         if (value) {
-            Alert.alert(
-                'บันทึกตำแหน่ง',
-                'ตำแหน่งที่คุณสแกนจะถูกบันทึกพร้อมกับประวัติ',
-                [{ text: 'ตกลง' }]
-            );
+            showNotification({
+                type: 'success',
+                title: 'เปิดบันทึกตำแหน่ง',
+                message: 'ตำแหน่งที่คุณสแกนจะถูกบันทึกพร้อมกับประวัติ',
+                duration: 3000,
+            });
+        } else {
+            showNotification({
+                type: 'info',
+                title: 'ปิดบันทึกตำแหน่ง',
+                message: 'ตำแหน่งจะไม่ถูกบันทึกอีกต่อไป',
+                duration: 3000,
+            });
         }
     };
 
@@ -100,11 +118,19 @@ export default function SettingsScreen() {
         saveSetting('high_quality_images', value);
         
         if (value) {
-            Alert.alert(
-                'ภาพคุณภาพสูง',
-                'ภาพความละเอียดสูงจะใช้ข้อมูลมากขึ้น แต่ได้ผลลัพธ์ที่ดีกว่า',
-                [{ text: 'ตกลง' }]
-            );
+            showNotification({
+                type: 'success',
+                title: 'เปิดภาพคุณภาพสูง',
+                message: 'ภาพความละเอียดสูงจะใช้ข้อมูลมากขึ้น แต่ได้ผลลัพธ์ที่ดีกว่า',
+                duration: 3000,
+            });
+        } else {
+            showNotification({
+                type: 'info',
+                title: 'ใช้ภาพปกติ',
+                message: 'ประหยัดข้อมูลมากขึ้น แต่คุณภาพอาจลดลง',
+                duration: 3000,
+            });
         }
     };
 
